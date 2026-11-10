@@ -59,6 +59,8 @@ class ShopApiTests(unittest.TestCase):
                 query = urlencode({'q': 'УТКА', 'category': 'Отладка'})
                 status, matches = request(base, '/api/products?' + query)
                 self.assertEqual((status, [p['id'] for p in matches]), (200, ['duck']))
+                duck_stock = matches[0]['stock']
+                self.assertTrue(5 <= duck_stock <= 20)
                 custom = {'name': 'Последний товар', 'category': 'Тест', 'description': 'Описание',
                           'price': 301, 'stock': 1, 'image': 'duck.svg'}
                 self.assertEqual(request(base, '/api/products/last', method='PUT', body=custom)[0], 403)
@@ -69,7 +71,7 @@ class ShopApiTests(unittest.TestCase):
                 failed = order('duck')
                 failed['items'].extend(order('last', 2)['items'])
                 self.assertEqual(request(base, '/api/orders', method='POST', body=failed)[0], 409)
-                self.assertEqual(request(base, '/api/products?' + query)[1][0]['stock'], 12)
+                self.assertEqual(request(base, '/api/products?' + query)[1][0]['stock'], duck_stock)
                 with ThreadPoolExecutor(max_workers=2) as pool:
                     results = list(pool.map(lambda _: request(base, '/api/orders', method='POST', body=order('last')), range(2)))
                 self.assertEqual(sorted(status for status, _ in results), [201, 409])
@@ -79,7 +81,7 @@ class ShopApiTests(unittest.TestCase):
                 self.assertEqual((status, result['totalKopecks']), (201, 27000))
                 self.assertEqual(request(base, '/api/orders', method='POST', body=discounted), (200, result))
             with serve(database) as base:
-                self.assertEqual(request(base, '/api/products?' + query)[1][0]['stock'], 9)
+                self.assertEqual(request(base, '/api/products?' + query)[1][0]['stock'], duck_stock - 3)
                 self.assertEqual(request(base, '/api/products?' + urlencode({'category': 'Тест'}))[1][0]['stock'], 0)
                 self.assertEqual(request(base, '/api/orders', method='POST', body=discounted), (200, result))
 

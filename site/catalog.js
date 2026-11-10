@@ -5,9 +5,10 @@ const seedProducts = [
     "price": 100,
     "category": "Отладка",
     "description": "Выслушает весь стек вызовов.",
-    "image": "duck.svg",
+    "image": "duck-front.jpg",
     "symbol": "🦆",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "duck-side.jpg"
   },
   {
     "id": "escape",
@@ -15,9 +16,10 @@ const seedProducts = [
     "price": 200,
     "category": "Клавиши",
     "description": "Когда план А уже выполняется.",
-    "image": "escape.svg",
+    "image": "escape-front.jpg",
     "symbol": "⎋",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "escape-side.jpg"
   },
   {
     "id": "coffee",
@@ -25,9 +27,10 @@ const seedProducts = [
     "price": 150,
     "category": "Кофе",
     "description": "Зависимость для утреннего запуска.",
-    "image": "coffee.svg",
+    "image": "coffee-front.jpg",
     "symbol": "☕",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "coffee-side.jpg"
   },
   {
     "id": "notebook",
@@ -35,9 +38,10 @@ const seedProducts = [
     "price": 350,
     "category": "Отладка",
     "description": "Для гипотез, которые переживут перезапуск.",
-    "image": "notebook.svg",
+    "image": "notebook-front.jpg",
     "symbol": "▤",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "notebook-side.jpg"
   },
   {
     "id": "enter",
@@ -45,9 +49,10 @@ const seedProducts = [
     "price": 290,
     "category": "Клавиши",
     "description": "Для решений, которые пора отправить.",
-    "image": "enter.svg",
+    "image": "enter-front.jpg",
     "symbol": "↵",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "enter-side.jpg"
   },
   {
     "id": "mouse",
@@ -55,9 +60,10 @@ const seedProducts = [
     "price": 590,
     "category": "Рабочий стол",
     "description": "Место, где курсор может выдохнуть.",
-    "image": "mouse.svg",
+    "image": "mouse-front.jpg",
     "symbol": "◉",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "mouse-side.jpg"
   },
   {
     "id": "mug",
@@ -65,9 +71,10 @@ const seedProducts = [
     "price": 450,
     "category": "Кофе",
     "description": "Аргумент для долгих обсуждений.",
-    "image": "mug.svg",
+    "image": "mug-front.jpg",
     "symbol": "☕",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "mug-side.jpg"
   },
   {
     "id": "stickers",
@@ -75,9 +82,10 @@ const seedProducts = [
     "price": 190,
     "category": "Рабочий стол",
     "description": "Держатся дольше самого фикса.",
-    "image": "stickers.svg",
+    "image": "stickers-front.jpg",
     "symbol": "✦",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "stickers-side.jpg"
   },
   {
     "id": "timer",
@@ -85,8 +93,9 @@ const seedProducts = [
     "price": 790,
     "category": "Рабочий стол",
     "description": "Засекает время до следующего коммита.",
-    "image": "timer.svg",
+    "image": "timer-front.jpg",
     "symbol": "◷",
-    "stock": 12
+    "stock": 12,
+    "detailImage": "timer-side.jpg"
   }
 ];

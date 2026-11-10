@@ -7,7 +7,16 @@ const checkout = $("#checkout");
 const search = $("#search");
 const category = $("#category");
 const sort = $("#sort");
-const favoritesButton = $("#favorites");
+const params = new URLSearchParams(location.search);
+const pageNames = {
+  favorites: ["Избранное", "// SAVED ITEMS"],
+  cart: ["Корзина", "// CART.LOG"],
+  checkout: ["Оформление", "// REVIEW ORDER"],
+  orders: ["Заказы", "// ORDER HISTORY"],
+  product: ["Товар", "// PRODUCT DETAILS"],
+};
+const view = Object.hasOwn(pageNames, params.get("view")) ? params.get("view") : "catalog";
+const orderMode = apiEnabled ? "server" : "demo";
 const promoInput = $("#promo");
 const storageKey = "czuze:shop:v1";
 const rubles = new Intl.NumberFormat("ru-RU", {
@@ -18,7 +27,8 @@ let products = new Map();
 let cartItems = new Map();
 let favorites = new Set();
 let promo = false;
-let onlyFavorites = false;
+let demoStock = {};
+let orders = [];
 let pending = false;
 let searchRequest;
 let requestId;
@@ -26,7 +36,7 @@ let ready = false;
 
 function save() {
   try {
-    localStorage.setItem(storageKey, JSON.stringify({ cart: [...cartItems], favorites: [...favorites], promo, requestId }));
+    localStorage.setItem(storageKey, JSON.stringify({ cart: [...cartItems], favorites: [...favorites], promo, requestId, demoStock, orders }));
   } catch {
     // The store still works when browser storage is unavailable.
   }
@@ -35,6 +45,10 @@ function save() {
 function restore() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
+    demoStock = Object.fromEntries(Object.entries(saved?.demoStock ?? {}).filter(([id, stock]) =>
+      products.has(id) && Number.isInteger(stock) && stock >= 0 && stock <= 999));
+    orders = Array.isArray(saved?.orders) ? saved.orders.filter(order =>
+      order && Array.isArray(order.items) && Number.isSafeInteger(order.totalKopecks)) : [];
     for (const entry of saved?.cart ?? []) {
       if (!Array.isArray(entry)) continue;
       const [id, quantity] = entry;
@@ -62,7 +76,7 @@ async function request(path, options) {
 }
 
 function limitFor(product) {
-  return apiEnabled ? Math.min(cartLimit, product.stock) : cartLimit;
+  return Math.min(cartLimit, product.stock);
 }
 
 function actionButton(text, label, action, disabled = false) {
@@ -82,7 +96,9 @@ function setQuantity(id, quantity, focusAction) {
   else cartItems.delete(id);
   requestId = undefined;
   save();
-  renderCart(`${product.name} · количество: ${quantity}`, focusAction ? { id, action: focusAction } : null);
+  const event = `${product.name} · количество: ${quantity}`;
+  $("#app-status").textContent = event;
+  renderCart(event, focusAction ? { id, action: focusAction } : null);
 }
 
 function renderCart(event, focus) {
@@ -108,7 +124,8 @@ function renderCart(event, focus) {
     lineTotal.className = "line-total";
     lineTotal.textContent = money(product.price * 100 * quantity);
     const remove = actionButton("×", `Удалить: ${product.name}`, () => setQuantity(id, 0, "remove"), pending);
-    item.append(label, controls, lineTotal, remove);
+    if (view === "checkout") item.append(label, value, lineTotal);
+    else item.append(label, controls, lineTotal, remove);
     cart.append(item);
     if (focus?.id === id) focusTarget = focus.action === "plus" && !plus.disabled ? plus : minus;
   }
@@ -118,12 +135,125 @@ function renderCart(event, focus) {
   $("#total").textContent = money(total);
   if (event) $("#cart-event").textContent = `${event} · Итого ${money(total)}`;
   checkout.disabled = pending || count === 0;
+  $("#go-checkout").hidden = view !== "cart" || count === 0;
   $("#promo-form").querySelectorAll("input, button").forEach(control => { control.disabled = pending; });
-  catalog.querySelectorAll(".add").forEach(button => {
-    const id = button.dataset.product;
-    button.disabled = pending || (cartItems.get(id) ?? 0) >= limitFor(products.get(id));
-  });
+  document.querySelectorAll(".buy-controls[data-product]").forEach(renderBuyControls);
   if (focus) (focusTarget ?? cart.querySelector("button") ?? $("#cart-title")).focus();
+}
+
+function renderBuyControls(group) {
+  const id = group.dataset.product;
+  const product = products.get(id);
+  const quantity = cartItems.get(id) ?? 0;
+  const active = document.activeElement;
+  const focused = group.contains(active);
+  group.replaceChildren();
+  if (quantity) {
+    const minus = actionButton("−", `Уменьшить: ${product.name}`, () => setQuantity(id, quantity - 1), pending);
+    const plus = actionButton("+", `Увеличить: ${product.name}`, () => setQuantity(id, quantity + 1), pending || quantity >= limitFor(product));
+    const value = document.createElement("span");
+    value.textContent = quantity;
+    group.append(minus, value, plus);
+    if (focused) (active.textContent === "+" && !plus.disabled ? plus : minus).focus();
+  } else {
+    const add = actionButton(product.stock ? "Добавить +" : "Нет в наличии", `Добавить: ${product.name}`, () => setQuantity(id, 1), pending || !product.stock);
+    add.className = "add";
+    group.append(add);
+    if (focused && !add.disabled) add.focus();
+  }
+}
+
+function updateFavorites() {
+  $("#favorite-count").textContent = favorites.size;
+}
+
+function bindFavorite(button, product, labeled = false) {
+  const { id, name } = product;
+  function update() {
+    const saved = favorites.has(id);
+    button.textContent = labeled ? (saved ? "♥ В избранном" : "♡ В избранное") : (saved ? "♥" : "♡");
+    button.setAttribute("aria-pressed", saved);
+  }
+  button.setAttribute("aria-label", `Избранное: ${name}`);
+  update();
+  button.addEventListener("click", () => {
+    if (favorites.has(id)) favorites.delete(id);
+    else favorites.add(id);
+    save();
+    update();
+    updateFavorites();
+    if (view === "favorites") {
+      $("#catalog-title").focus();
+      refreshCatalog();
+    }
+  });
+}
+
+function loadPhoto(img, filename, placeholder) {
+  img.onerror = () => {
+    img.hidden = true;
+    if (placeholder) placeholder.hidden = false;
+  };
+  img.hidden = false;
+  if (placeholder) placeholder.hidden = true;
+  img.src = `./assets/${filename}`;
+}
+
+function renderProduct() {
+  const product = products.get(params.get("id"));
+  if (!product) {
+    $("#view-title").textContent = "Товар не найден";
+    return;
+  }
+  $("#view-title").textContent = product.name;
+  $("#product-view").hidden = false;
+  $("#detail-category").textContent = product.category;
+  $("#detail-description").textContent = product.description;
+  $("#detail-stock").textContent = `Остаток: ${product.stock} шт.`;
+  $("#detail-price").textContent = money(product.price * 100);
+  $("#detail-actions").dataset.product = product.id;
+  bindFavorite($("#detail-favorite"), product, true);
+  const img = $("#gallery-image");
+  const tabs = $("#gallery-tabs");
+  const photos = [product.image, product.detailImage].filter(Boolean);
+  const buttons = photos.map((filename, index) => {
+    const button = actionButton("", index ? "Фото сбоку" : "Фото спереди", () => showPhoto(index));
+    const thumb = document.createElement("img");
+    thumb.alt = "";
+    loadPhoto(thumb, filename);
+    button.append(thumb);
+    tabs.append(button);
+    return button;
+  });
+  function showPhoto(index) {
+    img.alt = `${product.name} · ${index ? "фото сбоку" : "фото спереди"}`;
+    loadPhoto(img, photos[index], $("#gallery-placeholder"));
+    buttons.forEach((button, current) => button.setAttribute("aria-pressed", current === index));
+  }
+  showPhoto(0);
+}
+
+function renderOrders() {
+  const history = orders.filter(order => order.mode === orderMode);
+  $("#orders-empty").hidden = history.length > 0;
+  const list = $("#orders-list");
+  const latest = params.get("placed");
+  if (latest && history.some(order => String(order.id) === latest)) {
+    $("#order-success").hidden = false;
+    $("#order-success").textContent = `Заказ №${latest} оформлен.`;
+  }
+  for (const order of [...history].reverse()) {
+    const row = document.createElement("li");
+    const title = document.createElement("h2");
+    title.textContent = `Заказ №${order.id}`;
+    const summary = document.createElement("p");
+    summary.textContent = order.items.map(item => `${item.name} × ${item.quantity}`).join(" · ");
+    const total = document.createElement("strong");
+    total.className = "price";
+    total.textContent = money(order.totalKopecks);
+    row.append(title, summary, total);
+    list.append(row);
+  }
 }
 
 function renderCatalog(items) {
@@ -131,58 +261,34 @@ function renderCatalog(items) {
     query: apiEnabled ? "" : search.value,
     category: apiEnabled ? "" : category.value,
     sort: sort.value,
-    favorites: onlyFavorites ? favorites : null,
+    favorites: view === "favorites" ? favorites : null,
   });
   catalog.replaceChildren();
   const message = $("#catalog-message");
   message.hidden = visible.length > 0;
-  message.textContent = onlyFavorites ? "Здесь пока нет подходящих избранных товаров." : "Ничего не найдено. Попробуйте другой запрос.";
+  message.textContent = view === "favorites" ? "Здесь пока нет подходящих избранных товаров." : "Ничего не найдено. Попробуйте другой запрос.";
   $("#result-count").textContent = `Найдено: ${visible.length}`;
   for (const product of visible) {
     const { id, name, price, image, description } = product;
     const card = $("#product-template").content.cloneNode(true);
     const img = card.querySelector("img");
     const placeholder = card.querySelector(".art-placeholder");
-    img.addEventListener("error", () => {
-      img.hidden = true;
-      placeholder.hidden = false;
-      placeholder.textContent = "▧";
-    });
-    img.src = `./assets/${image}`;
+    const url = `?view=product&id=${encodeURIComponent(id)}`;
+    const photo = card.querySelector(".product-photo");
+    photo.href = url;
+    photo.setAttribute("aria-label", `Открыть: ${name}`);
+    loadPhoto(img, image, placeholder);
     card.querySelector(".product-id").textContent = id.toUpperCase();
-    card.querySelector(".product-category").textContent = apiEnabled
-      ? `${product.category} · Остаток: ${product.stock}`
-      : product.category;
-    card.querySelector("h3").textContent = name;
+    card.querySelector(".product-category").textContent = `${product.category} · Остаток: ${product.stock}`;
+    const title = card.querySelector("h3 a");
+    title.textContent = name;
+    title.href = url;
     card.querySelector("p").textContent = description;
     card.querySelector(".price").textContent = money(price * 100);
-    const add = card.querySelector(".add");
-    add.dataset.product = id;
-    add.setAttribute("aria-label", `Добавить: ${name}`);
-    add.disabled = pending || (cartItems.get(id) ?? 0) >= limitFor(product);
-    if (apiEnabled && product.stock === 0) add.textContent = "Нет в наличии";
-    add.addEventListener("click", () => {
-      setQuantity(id, (cartItems.get(id) ?? 0) + 1);
-      if (add.disabled) $("#cart-title").focus();
-    });
-
-    const favorite = card.querySelector(".favorite");
-    const updateFavorite = () => {
-      favorite.textContent = favorites.has(id) ? "♥" : "♡";
-      favorite.setAttribute("aria-pressed", favorites.has(id));
-    };
-    favorite.setAttribute("aria-label", `Избранное: ${name}`);
-    updateFavorite();
-    favorite.addEventListener("click", () => {
-      if (favorites.has(id)) favorites.delete(id);
-      else favorites.add(id);
-      save();
-      updateFavorite();
-      if (onlyFavorites) {
-        favoritesButton.focus();
-        refreshCatalog();
-      }
-    });
+    const group = card.querySelector(".buy-controls");
+    group.dataset.product = id;
+    renderBuyControls(group);
+    bindFavorite(card.querySelector(".favorite"), product);
     catalog.append(card);
   }
 }
@@ -196,7 +302,7 @@ async function refreshCatalog() {
     const params = new URLSearchParams({ q: search.value, category: category.value });
     const items = apiEnabled ? await request(`products?${params}`, { signal: controller.signal }) : [...products.values()];
     if (controller.signal.aborted) return;
-    for (const product of items) products.set(product.id, product);
+    for (const product of items) products.set(product.id, { ...products.get(product.id), ...product });
     renderCatalog(items);
     if (apiEnabled && cartItems.size) renderCart();
   } catch (error) {
@@ -209,21 +315,11 @@ async function refreshCatalog() {
   }
 }
 
-function toggleFavorites(enabled) {
-  onlyFavorites = enabled;
-  favoritesButton.setAttribute("aria-pressed", enabled);
-}
-
 search.addEventListener("input", refreshCatalog);
 category.addEventListener("change", refreshCatalog);
 sort.addEventListener("change", refreshCatalog);
-favoritesButton.addEventListener("click", () => {
-  toggleFavorites(!onlyFavorites);
-  refreshCatalog();
-});
 $("#reset").addEventListener("click", () => {
   search.value = category.value = sort.value = "";
-  toggleFavorites(false);
   refreshCatalog();
 });
 
@@ -239,48 +335,102 @@ $("#promo-form").addEventListener("submit", event => {
 });
 
 checkout.addEventListener("click", async () => {
+  if (pending || !cartItems.size) return;
   pending = true;
   renderCart("Отправляем заказ");
-  let message;
   try {
-    requestId ??= crypto.randomUUID();
-    save();
-    const order = await request("orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [...cartItems].map(([productId, quantity]) => ({ productId, quantity })), promo: promo ? promoCode : "", requestId }),
-    });
+    const items = [...cartItems].map(([productId, quantity]) => ({ productId, quantity }));
+    const summary = items.map(({ productId, quantity }) => ({ name: products.get(productId).name, quantity }));
+    let order;
+    if (apiEnabled) {
+      requestId ??= crypto.randomUUID();
+      save();
+      order = await request("orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, promo: promo ? promoCode : "", requestId }),
+      });
+    } else {
+      if (items.some(({ productId, quantity }) => quantity > products.get(productId).stock)) {
+        throw new Error("Остаток изменился. Вернитесь в корзину и проверьте количество.");
+      }
+      order = {
+        id: orders.filter(entry => entry.mode === "demo").length + 1,
+        totalKopecks: cartAmounts(cartItems, products, promo).total,
+      };
+      for (const { productId, quantity } of items) {
+        demoStock[productId] -= quantity;
+      }
+    }
+    orders.push({ ...order, mode: orderMode, items: summary });
     cartItems.clear();
     requestId = undefined;
+    promo = false;
     save();
-    message = `Заказ №${order.id} принят · ${money(order.totalKopecks)}`;
-    refreshCatalog();
+    location.assign(`?view=orders&placed=${encodeURIComponent(order.id)}`);
   } catch (error) {
-    message = error.message;
-    refreshCatalog();
-  } finally {
     pending = false;
-    renderCart(message);
+    renderCart(error.message);
     $("#cart-title").focus();
   }
 });
 
 async function start() {
+  const section = view === "favorites" ? "catalog" : view === "checkout" ? "cart" : view;
+  if (view !== "catalog") {
+    $("#view-heading").hidden = false;
+    $("#view-title").textContent = pageNames[view][0];
+    $("#view-kicker").textContent = pageNames[view][1];
+    document.title = `${pageNames[view][0]} · CZUZE`;
+  }
+  const nav = document.querySelector(`[data-nav="${view === "checkout" ? "cart" : view}"]`);
+  nav?.setAttribute("aria-current", view === "checkout" ? "location" : "page");
+  $("#hero").hidden = view !== "catalog";
+  if (section !== "product") $(`#${section}-view`).hidden = false;
+  checkout.hidden = view !== "checkout";
+  $("#back-to-cart").hidden = view !== "checkout";
+  $("#promo-form").hidden = view !== "cart";
+  $("#checkout-note").hidden = view !== "checkout";
+  $("#checkout-note").textContent = apiEnabled
+    ? "Проверьте состав заказа и подтвердите оформление."
+    : "Учебный заказ. Оплата не требуется, история сохраняется в этом браузере.";
   try {
-    const items = apiEnabled ? await request("products") : seedProducts;
-    products = new Map(items.map(product => [product.id, product]));
+    const items = apiEnabled ? await request("products") : seedProducts.map(product => ({ ...product }));
+    const photos = new Map(seedProducts.map(product => [product.id, product]));
+    products = new Map(items.map(product => [product.id, {
+      ...product, detailImage: product.image === photos.get(product.id)?.image ? photos.get(product.id).detailImage : undefined,
+    }]));
     for (const name of [...new Set(items.map(product => product.category))].sort((a, b) => a.localeCompare(b, "ru"))) {
       category.add(new Option(name, name));
     }
     restore();
+    if (!apiEnabled) {
+      for (const product of products.values()) {
+        demoStock[product.id] ??= Math.max(cartItems.get(product.id) ?? 0, 5 + Math.floor(Math.random() * 16));
+        product.stock = demoStock[product.id];
+      }
+      save();
+    }
     ready = true;
-    checkout.hidden = !apiEnabled;
+    updateFavorites();
+    if (view === "product") renderProduct();
+    if (view === "orders") renderOrders();
     renderCart();
-    refreshCatalog();
+    if (section === "catalog") refreshCatalog();
   } catch (error) {
-    $("#catalog-message").hidden = false;
-    $("#catalog-message").textContent = `Каталог недоступен. ${error.message} Обновите страницу.`;
+    const message = `Магазин недоступен. ${error.message} Обновите страницу.`;
+    if (section === "catalog") {
+      $("#catalog-message").hidden = false;
+      $("#catalog-message").textContent = message;
+    } else {
+      $("#cart-event").textContent = message;
+      $("#view-title").textContent = message;
+    }
   }
 }
+
+window.addEventListener("pageshow", event => {
+  if (event.persisted) location.reload();
+});
 
 start();

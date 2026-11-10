@@ -4,6 +4,7 @@ import hmac
 from http.server import SimpleHTTPRequestHandler
 import json
 import re
+from secrets import randbelow
 import sqlite3
 from urllib.parse import parse_qs, urlsplit
 
@@ -30,6 +31,8 @@ def prepare_database(database, catalog):
     if not source.startswith(prefix) or not source.endswith(';'):
         raise ValueError('Неверный формат catalog.js')
     products = json.loads(source[len(prefix):-1])
+    for product in products:
+        product['stock'] = 5 + randbelow(16)
     with closing(connect(database)) as conn, conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS products (
@@ -45,6 +48,10 @@ def prepare_database(database, catalog):
         conn.executemany(
             'INSERT OR IGNORE INTO products VALUES (?, ?, ?, ?, ?, ?, ?)',
             ([product[field] for field in PRODUCT_FIELDS] for product in products),
+        )
+        conn.executemany(
+            'UPDATE products SET image = ? WHERE id = ? AND image = ?',
+            ((product['image'], product['id'], product['id'] + '.svg') for product in products),
         )
 
 
