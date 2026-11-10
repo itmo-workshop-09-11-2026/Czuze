@@ -21,13 +21,11 @@ const productModelViewer = (() => {
   let spinning = false;
   let lastFrame;
 
-  function ellipsoid(center, radii, color, tilt = 0) {
+  function ellipsoid(center, radii, color, tilt = 0, [columns, rows] = [24, 14]) {
     const [cx, cy, cz] = center;
     const [rx, ry, rz] = radii;
     const cosine = Math.cos(tilt);
     const sine = Math.sin(tilt);
-    const columns = 24;
-    const rows = 14;
     const vertices = [];
     const faces = [];
     for (let row = 0; row <= rows; row++) {
@@ -60,16 +58,17 @@ const productModelViewer = (() => {
     const gold = [255, 202, 49];
     const amber = [244, 171, 34];
     const orange = [245, 114, 25];
+    const detailedMesh = [56, 34];
     const parts = [
-      ellipsoid([0.12, -0.30, 0], [0.86, 0.49, 0.54], gold),
-      ellipsoid([0.74, -0.14, 0], [0.39, 0.22, 0.31], gold, 0.68),
-      ellipsoid([-0.43, 0.37, 0], [0.51, 0.55, 0.43], gold),
-      ellipsoid([-0.93, 0.20, 0], [0.32, 0.105, 0.28], [211, 82, 16], 0.09),
-      ellipsoid([-0.96, 0.29, 0], [0.33, 0.105, 0.28], orange, -0.12),
+      ellipsoid([0.12, -0.30, 0], [0.86, 0.49, 0.54], gold, 0, detailedMesh),
+      ellipsoid([0.74, -0.14, 0], [0.39, 0.22, 0.31], gold, 0.68, detailedMesh),
+      ellipsoid([-0.43, 0.37, 0], [0.51, 0.55, 0.43], gold, 0, detailedMesh),
+      ellipsoid([-0.93, 0.20, 0], [0.32, 0.105, 0.28], [211, 82, 16], 0.09, detailedMesh),
+      ellipsoid([-0.96, 0.29, 0], [0.33, 0.105, 0.28], orange, -0.12, detailedMesh),
     ];
     for (const side of [-1, 1]) {
       parts.push(
-        ellipsoid([0.20, -0.22, side * 0.43], [0.49, 0.23, 0.14], amber, 0.14),
+        ellipsoid([0.20, -0.22, side * 0.43], [0.49, 0.23, 0.14], amber, 0.14, detailedMesh),
         ellipsoid([-0.60, 0.50, side * 0.38], [0.079, 0.102, 0.062], [28, 22, 14]),
         ellipsoid([-0.625, 0.535, side * 0.429], [0.024, 0.029, 0.016], [255, 249, 218]),
       );
