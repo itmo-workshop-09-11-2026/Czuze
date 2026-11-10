@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#101111">
   <title>Czuze — Лавка отладчика</title>
   <link rel="stylesheet" href="./styles.css">
+  <script src="./catalog.js" defer></script>
+  <script src="./shop-mode.js" defer></script>
+  <script src="./shop-rules.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -19,14 +22,24 @@
         <p class="eyebrow">// DEBUG KIT · 001</p>
         <h1>Лавка<br><span>отладчика<span class="cursor" aria-hidden="true"></span></span></h1>
         <p class="intro">Утка выслушает. Esc даст передышку. Кофе поможет начать заново.</p>
+        <a class="hero-link" href="#catalog-title">Собрать набор <span aria-hidden="true">↓</span></a>
+        <div class="hero-terminal" aria-hidden="true"><b>debug-kit / session</b><span>$ git status</span><span>✔ рабочий стол готов</span><span>✔ кофе подключён</span><strong>→ ждём твоего коммита</strong></div>
       </header>
       <div class="workspace">
         <section aria-labelledby="catalog-title">
           <div class="section-heading">
-            <h2 id="catalog-title">Каталог</h2>
-            <span class="muted">03 позиции</span>
+            <h2 id="catalog-title" tabindex="-1">Каталог</h2>
+            <span class="muted" id="result-count" role="status"></span>
           </div>
-          <ul id="catalog"></ul>
+          <div class="filters" aria-label="Фильтры каталога">
+            <label>Поиск <input id="search" type="search" placeholder="Например, утка"></label>
+            <label>Категория <select id="category"><option value="">Все категории</option></select></label>
+            <label>Цена <select id="sort"><option value="">По умолчанию</option><option value="asc">Сначала дешевле</option><option value="desc">Сначала дороже</option></select></label>
+            <button type="button" id="favorites" aria-pressed="false">♡ Избранное</button>
+            <button type="button" id="reset">Сбросить</button>
+          </div>
+          <p id="catalog-message" class="catalog-message" hidden></p>
+          <ul id="catalog" role="list"></ul>
         </section>
         <section class="cart-panel" aria-labelledby="cart-title">
           <div class="section-heading">
@@ -35,10 +48,17 @@
           </div>
           <div class="cart-body">
             <p id="empty">Ноль товаров. Ноль ошибок.</p>
-            <ul id="cart" hidden></ul>
+            <ul id="cart" role="list" hidden></ul>
           </div>
+          <form id="promo-form" class="promo">
+            <label for="promo">Промокод</label>
+            <div><input id="promo" placeholder="DEBUG10" maxlength="30"><button type="submit">Применить</button></div>
+            <p id="promo-status" role="status"></p>
+          </form>
           <p class="cart-event" id="cart-event" role="status"></p>
+          <p class="cart-total discount" id="discount" hidden><span>Скидка</span><strong></strong></p>
           <p class="cart-total"><span>Итого</span><strong id="total">0 ₽</strong></p>
+          <button class="checkout add" id="checkout" type="button" hidden>Оформить заказ</button>
         </section>
       </div>
     </main>
@@ -49,8 +69,11 @@
       <div class="product-art">
         <span class="product-id"></span>
         <img alt="" width="240" height="168">
+        <span class="art-placeholder" aria-hidden="true" hidden>▧</span>
+        <button type="button" class="favorite" aria-pressed="false">♡</button>
       </div>
       <div class="product-info">
+        <span class="product-category"></span>
         <h3></h3>
         <p></p>
         <div class="product-actions">
