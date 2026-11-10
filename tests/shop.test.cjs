@@ -27,5 +27,18 @@ vm.runInNewContext(fs.readFileSync("site/shop-rules.js", "utf8") + `
   assert.equal(result.added, 3);
   assert.deepEqual([...nextCart], [["duck", 4], ["esc", 1]]);
   assert.deepEqual(result.missing, [duck.name + " × 1", "Снятый товар × 1"]);
+  const restored = readSavedShop(JSON.stringify({
+    cart: [["duck", 2], ["esc", -1]], favorites: {}, promo: true,
+    orders: [
+      { id: 1, mode: "demo", totalKopecks: 10000, items: [{ name: duck.name, quantity: 1 }] },
+      { id: 2, mode: "demo", totalKopecks: 10000, items: [null] },
+    ],
+    requestId: "bad id",
+  }), products);
+  assert.deepEqual([...restored.cart], [["duck", 2]]);
+  assert.equal(restored.orders.length, 1);
+  assert.equal(restored.promo, true);
+  assert.equal(restored.requestId, undefined);
+  assert.equal(readSavedShop("{broken", products).cart.size, 0);
 `, { assert });
 console.log("PASS search, sorting, favorites, quantities, discounts, repeat orders");

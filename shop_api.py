@@ -201,6 +201,10 @@ class ShopHandler(SimpleHTTPRequestHandler):
             value = data.get(field)
             if not isinstance(value, str) or not 1 <= len(value.strip()) <= limit:
                 raise ApiError(400, f'Некорректное поле {field}.')
+            try:
+                value.encode('utf-8')
+            except UnicodeEncodeError:
+                raise ApiError(400, f'Некорректное поле {field}.') from None
             product[field] = value.strip()
         for field, minimum, maximum in (('price', 1, 1_000_000), ('stock', 0, 999_999)):
             value = data.get(field)

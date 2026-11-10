@@ -47,3 +47,26 @@ function addOrderItems(cart, products, items) {
   }
   return { added, missing };
 }
+
+function readSavedShop(raw, products) {
+  let state;
+  try {
+    state = JSON.parse(raw);
+  } catch {
+    state = null;
+  }
+  const list = value => Array.isArray(value) ? value : [];
+  const cart = new Map(list(state?.cart).filter(entry => Array.isArray(entry) &&
+    products.has(entry[0]) && Number.isInteger(entry[1]) && entry[1] > 0 && entry[1] <= cartLimit));
+  const favorites = new Set(list(state?.favorites).filter(id => products.has(id)));
+  const demoStock = Object.fromEntries(Object.entries(state?.demoStock ?? {}).filter(([id, stock]) =>
+    products.has(id) && Number.isInteger(stock) && stock >= 0 && stock <= cartLimit));
+  const orders = list(state?.orders).filter(order =>
+    order && ["demo", "server"].includes(order.mode) && Number.isSafeInteger(order.id) &&
+    Number.isSafeInteger(order.totalKopecks) && Array.isArray(order.items) &&
+    order.items.every(item => item && typeof item.name === "string" &&
+      Number.isInteger(item.quantity) && item.quantity > 0));
+  const requestId = typeof state?.requestId === "string" &&
+    /^[a-zA-Z0-9-]{1,80}$/.test(state.requestId) ? state.requestId : undefined;
+  return { cart, favorites, demoStock, orders, requestId, promo: state?.promo === true };
+}

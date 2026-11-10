@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101111">
   <title>Czuze — Лавка отладчика</title>
-  <link rel="stylesheet" href="./styles.css?v=20261110-model-gallery">
-  <script src="./catalog.js?v=20261110-model-gallery" defer></script>
-  <script src="./shop-mode.js?v=20261110-model-gallery" defer></script>
-  <script src="./shop-rules.js?v=20261110-model-gallery" defer></script>
-  <script src="./product-models.js?v=20261110-duck-detail" defer></script>
-  <script src="./app.js?v=20261110-model-gallery" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20261110-shop-fixes">
+  <script src="./catalog.js?v=20261110-shop-fixes" defer></script>
+  <script src="./shop-mode.js?v=20261110-shop-fixes" defer></script>
+  <script src="./shop-rules.js?v=20261110-shop-fixes" defer></script>
+  <script src="./product-models.js?v=20261110-shop-fixes" defer></script>
+  <script src="./app.js?v=20261110-shop-fixes" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -32,6 +32,7 @@
         <button class="secondary duck-launch" id="duck-launch" type="button">Спросить утку <span aria-hidden="true">↗</span></button>
         <div class="hero-terminal" aria-hidden="true"><b>debug-kit / session</b><span>$ git status</span><span>✔ рабочий стол готов</span><span>✔ кофе подключён</span><strong>→ ждём твоего коммита</strong></div>
       </header>
+      <p id="storage-warning" class="catalog-message" role="status" hidden></p>
       <p id="app-status" class="sr-only" role="status"></p>
       <section class="view-heading" id="view-heading" hidden>
         <p class="eyebrow" id="view-kicker"></p>
@@ -69,6 +70,7 @@
           <p class="cart-event" id="cart-event" role="status"></p>
           <p class="cart-total discount" id="discount" hidden><span>Скидка</span><strong></strong></p>
           <p class="cart-total"><span>Итого</span><strong id="total">0 ₽</strong></p>
+          <p id="cart-stock-warning" class="checkout-note" role="status" hidden>Проверьте количество товаров в корзине. Для некоторых позиций остаток изменился.</p>
           <p id="checkout-note" class="checkout-note" hidden></p>
           <a class="checkout add" id="go-checkout" href="?view=checkout" hidden>Перейти к оформлению →</a>
           <a class="checkout secondary" id="back-to-cart" href="?view=cart" hidden>← Вернуться в корзину</a>

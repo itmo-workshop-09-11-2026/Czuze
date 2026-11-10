@@ -34,44 +34,55 @@ let searchRequest;
 let requestId;
 let ready = false;
 
-function save() {
+let storageSnapshot;
+
+function storageWarning() {
+  const warning = $("#storage-warning");
+  warning.hidden = false;
+  warning.textContent = "Браузер не сохранил изменения. Проверьте, разрешено ли сайту хранить данные.";
+}
+
+function save(overrides) {
   try {
-    localStorage.setItem(storageKey, JSON.stringify({ cart: [...cartItems], favorites: [...favorites], promo, requestId, demoStock, orders }));
+    if (localStorage.getItem(storageKey) !== storageSnapshot) {
+      location.reload();
+      return false;
+    }
+    const next = JSON.stringify({
+      cart: [...cartItems], favorites: [...favorites], promo, requestId, demoStock, orders, ...overrides,
+    });
+    localStorage.setItem(storageKey, next);
+    storageSnapshot = next;
+    return true;
   } catch {
-    // The store still works when browser storage is unavailable.
+    storageWarning();
+    return false;
   }
 }
 
 function restore() {
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey));
-    demoStock = Object.fromEntries(Object.entries(saved?.demoStock ?? {}).filter(([id, stock]) =>
-      products.has(id) && Number.isInteger(stock) && stock >= 0 && stock <= 999));
-    orders = Array.isArray(saved?.orders) ? saved.orders.filter(order =>
-      order && Array.isArray(order.items) && Number.isSafeInteger(order.totalKopecks)) : [];
-    for (const entry of saved?.cart ?? []) {
-      if (!Array.isArray(entry)) continue;
-      const [id, quantity] = entry;
-      if (products.has(id) && Number.isInteger(quantity) && quantity > 0 && quantity <= cartLimit) {
-        cartItems.set(id, quantity);
-      }
-    }
-    favorites = new Set((saved?.favorites ?? []).filter(id => products.has(id)));
-    promo = saved?.promo === true;
-    if (typeof saved?.requestId === "string") requestId = saved.requestId;
-    if (promo) {
-      promoInput.value = promoCode;
-      $("#promo-status").textContent = "Скидка 10% активна.";
-    }
+    storageSnapshot = localStorage.getItem(storageKey);
   } catch {
-    // Ignore unreadable storage and start with an empty cart.
+    storageWarning();
+  }
+  const saved = readSavedShop(storageSnapshot, products);
+  ({ demoStock, orders, favorites, promo, requestId } = saved);
+  cartItems = saved.cart;
+  if (promo) {
+    promoInput.value = promoCode;
+    $("#promo-status").textContent = "Скидка 10% активна.";
   }
 }
 
 async function request(path, options) {
   const response = await fetch(`./api/${path}`, options);
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Запрос не выполнен.");
+  if (!response.ok) {
+    const error = new Error(result.error || "Запрос не выполнен.");
+    error.status = response.status;
+    throw error;
+  }
   return result;
 }
 
@@ -104,11 +115,19 @@ function renderCart(event, focus) {
   cart.hidden = count === 0;
   cart.replaceChildren();
   let focusTarget;
+  let exceedsStock = false;
   for (const [id, quantity] of cartItems) {
     const product = products.get(id);
     const item = document.createElement("li");
     const label = document.createElement("strong");
     label.textContent = product.name;
+    if (quantity > limitFor(product)) {
+      exceedsStock = true;
+      const stock = document.createElement("small");
+      stock.className = "cart-stock";
+      stock.textContent = `Доступно: ${product.stock} шт.`;
+      label.append(stock);
+    }
     const controls = document.createElement("div");
     controls.className = "quantity";
     const minus = actionButton("−", `Уменьшить: ${product.name}`, () => setQuantity(id, quantity - 1, "minus"), pending);
@@ -130,8 +149,9 @@ function renderCart(event, focus) {
   discountLine.querySelector("strong").textContent = `−${money(discount)}`;
   $("#total").textContent = money(total);
   if (event) $("#cart-event").textContent = `${event} · Итого ${money(total)}`;
-  checkout.disabled = pending || count === 0;
-  $("#go-checkout").hidden = view !== "cart" || count === 0;
+  $("#cart-stock-warning").hidden = !exceedsStock;
+  checkout.disabled = pending || count === 0 || (exceedsStock && !(apiEnabled && requestId));
+  $("#go-checkout").hidden = view !== "cart" || count === 0 || (exceedsStock && !(apiEnabled && requestId));
   $("#promo-form").querySelectorAll("input, button").forEach(control => { control.disabled = pending; });
   document.querySelectorAll(".buy-controls[data-product]").forEach(renderBuyControls);
   if (focus) (focusTarget ?? cart.querySelector("button") ?? $("#cart-title")).focus();
@@ -203,7 +223,7 @@ function renderProduct() {
   }
   $("#view-title").textContent = product.name;
   $("#product-view").hidden = false;
-  productModelViewer.select(product);
+  if (typeof productModelViewer !== "undefined") productModelViewer.select(product);
   $("#detail-category").textContent = product.category;
   $("#detail-description").textContent = product.description;
   $("#detail-stock").textContent = `Остаток: ${product.stock} шт.`;
@@ -361,8 +381,9 @@ checkout.addEventListener("click", async () => {
     const summary = items.map(({ productId, quantity }) => ({ productId, name: products.get(productId).name, quantity }));
     let order;
     if (apiEnabled) {
-      requestId ??= crypto.randomUUID();
-      save();
+      requestId ??= Array.from(crypto.getRandomValues(new Uint8Array(16)), byte =>
+        byte.toString(16).padStart(2, "0")).join("");
+      if (!save()) throw new Error("Не удалось сохранить данные для оформления заказа.");
       order = await request("orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -376,17 +397,27 @@ checkout.addEventListener("click", async () => {
         id: orders.filter(entry => entry.mode === "demo").length + 1,
         totalKopecks: cartAmounts(cartItems, products, promo).total,
       };
-      for (const { productId, quantity } of items) {
-        demoStock[productId] -= quantity;
-      }
     }
-    orders.push({ ...order, mode: orderMode, items: summary });
-    cartItems.clear();
-    requestId = undefined;
-    promo = false;
-    save();
+    const nextStock = { ...demoStock };
+    if (!apiEnabled) {
+      for (const { productId, quantity } of items) nextStock[productId] -= quantity;
+    }
+    const nextOrders = [...orders, { ...order, mode: orderMode, items: summary }];
+    if (!save({ cart: [], requestId: undefined, promo: false, demoStock: nextStock, orders: nextOrders })) {
+      throw new Error("Не удалось сохранить результат. Проверьте доступ к хранилищу и повторите.");
+    }
     location.assign(`?view=orders&placed=${encodeURIComponent(order.id)}`);
   } catch (error) {
+    if (apiEnabled && error.status === 409) {
+      requestId = undefined;
+      save();
+      try {
+        const currentProducts = await request("products");
+        for (const product of currentProducts) products.set(product.id, product);
+      } catch {
+        // Keep the original order error visible if the refresh also fails.
+      }
+    }
     pending = false;
     renderCart(error.message);
     $("#cart-title").focus();
@@ -423,11 +454,15 @@ async function start() {
     }
     restore();
     if (!apiEnabled) {
+      let stockInitialized = false;
       for (const product of products.values()) {
-        demoStock[product.id] ??= Math.max(cartItems.get(product.id) ?? 0, 5 + Math.floor(Math.random() * 16));
+        if (demoStock[product.id] === undefined) {
+          demoStock[product.id] = Math.max(cartItems.get(product.id) ?? 0, 5 + Math.floor(Math.random() * 16));
+          stockInitialized = true;
+        }
         product.stock = demoStock[product.id];
       }
-      save();
+      if (stockInitialized) save();
     }
     ready = true;
     updateFavorites();
@@ -446,6 +481,11 @@ async function start() {
     }
   }
 }
+
+window.addEventListener("storage", event => {
+  if (event.key === storageKey && event.newValue !== storageSnapshot && ready && !pending &&
+      !document.querySelector("dialog[open]")) location.reload();
+});
 
 window.addEventListener("pageshow", event => {
   if (event.persisted) location.reload();

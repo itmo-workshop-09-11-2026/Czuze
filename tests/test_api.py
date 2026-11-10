@@ -65,6 +65,8 @@ class ShopApiTests(unittest.TestCase):
                           'price': 301, 'stock': 1, 'image': 'duck.svg'}
                 self.assertEqual(request(base, '/api/products/last', method='PUT', body=custom)[0], 403)
                 self.assertEqual(request(base, '/api/products/last', method='PUT', body=custom, token='test-only')[0], 200)
+                invalid = dict(custom, name=chr(0xD800))
+                self.assertEqual(request(base, '/api/products/last', method='PUT', body=invalid, token='test-only')[0], 400)
                 self.assertEqual(request(base, '/api/orders', method='POST', body=order('missing'))[0], 400)
                 self.assertEqual(request(base, '/api/orders', method='POST', body=order('duck', 1.5))[0], 400)
                 self.assertEqual(request(base, '/api/orders', method='POST', body={'items': []})[0], 400)

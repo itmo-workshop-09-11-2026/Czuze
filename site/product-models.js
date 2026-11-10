@@ -263,6 +263,7 @@ const productModelViewer = (() => {
     button.addEventListener("click", () => turn(Number(button.dataset.modelTurn) * 0.28));
   });
   canvas.addEventListener("wheel", event => {
+    if (event.ctrlKey || event.metaKey || !event.deltaY) return;
     event.preventDefault();
     changeZoom(-Math.sign(event.deltaY));
   }, { passive: false });

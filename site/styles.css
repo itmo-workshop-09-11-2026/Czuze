@@ -366,3 +366,5 @@ button:disabled { opacity: .54; cursor: default; }
   .model-controls button { min-height: 44px; }
   #product-model-angle { flex-basis: 100%; text-align: right; }
 }
+
+.cart-stock { display: block; margin-top: 4px; color: #ffbf89; font-weight: 500; }
