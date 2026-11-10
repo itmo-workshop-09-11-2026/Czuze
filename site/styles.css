@@ -1,0 +1,9 @@
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f3f5fa; color: #17233d; font-family: system-ui, sans-serif; }
+main { width: min(100%, 680px); padding: clamp(24px, 5vw, 56px); background: white; border: 1px solid #dbe1ed; border-radius: 20px; }
+h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; }
+p { line-height: 1.6; }
+.eyebrow { color: #435371; }
+a { color: #174bc0; text-underline-offset: 4px; }
+a:focus-visible { outline: 3px solid #174bc0; outline-offset: 5px; }
+#status { color: #285534; }
