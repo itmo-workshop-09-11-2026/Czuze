@@ -75,10 +75,6 @@ async function request(path, options) {
   return result;
 }
 
-function limitFor(product) {
-  return Math.min(cartLimit, product.stock);
-}
-
 function actionButton(text, label, action, disabled = false) {
   const button = document.createElement("button");
   button.type = "button";
@@ -251,7 +247,28 @@ function renderOrders() {
     const total = document.createElement("strong");
     total.className = "price";
     total.textContent = money(order.totalKopecks);
-    row.append(title, summary, total);
+    const actions = document.createElement("div");
+    actions.className = "order-actions";
+    const status = document.createElement("span");
+    status.setAttribute("role", "status");
+    const cartLink = document.createElement("a");
+    cartLink.href = "?view=cart";
+    cartLink.textContent = "Открыть корзину →";
+    cartLink.hidden = true;
+    const repeat = actionButton("Повторить заказ", `Повторить заказ №${order.id}`, () => {
+      const { added, missing } = addOrderItems(cartItems, products, order.items);
+      if (added) {
+        requestId = undefined;
+        save();
+        renderCart();
+        cartLink.hidden = false;
+      }
+      status.textContent = added ? `Добавлено в корзину: ${added} шт.` : "Добавить товары не удалось.";
+      if (missing.length) status.textContent += ` Не хватило: ${missing.join(", ")}.`;
+    });
+    repeat.className = "add";
+    actions.append(repeat, cartLink, status);
+    row.append(title, summary, total, actions);
     list.append(row);
   }
 }
@@ -340,7 +357,7 @@ checkout.addEventListener("click", async () => {
   renderCart("Отправляем заказ");
   try {
     const items = [...cartItems].map(([productId, quantity]) => ({ productId, quantity }));
-    const summary = items.map(({ productId, quantity }) => ({ name: products.get(productId).name, quantity }));
+    const summary = items.map(({ productId, quantity }) => ({ productId, name: products.get(productId).name, quantity }));
     let order;
     if (apiEnabled) {
       requestId ??= crypto.randomUUID();

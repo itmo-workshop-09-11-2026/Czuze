@@ -301,3 +301,6 @@ button:disabled { opacity: .54; cursor: default; }
   #catalog { grid-template-columns: 1fr; }
   #cart li strong { grid-column: 1 / -1; }
 }
+
+.order-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+.order-actions [role="status"]:not(:empty) { flex-basis: 100%; color: var(--muted); font-size: .85rem; }

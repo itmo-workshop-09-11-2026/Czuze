@@ -23,3 +23,27 @@ function cartAmounts(items, products, promo) {
   const discount = promo ? subtotal / 10 : 0;
   return { count, discount, total: subtotal - discount };
 }
+
+function limitFor(product) {
+  return Math.min(cartLimit, product.stock);
+}
+
+function addOrderItems(cart, products, items) {
+  let added = 0;
+  const missing = [];
+  for (const item of items) {
+    if (!item || !Number.isInteger(item.quantity) || item.quantity < 1) continue;
+    let product = products.get(item.productId);
+    if (!item.productId) {
+      const matches = [...products.values()].filter(candidate => candidate.name === item.name);
+      if (matches.length === 1) product = matches[0];
+    }
+    const current = product ? (cart.get(product.id) ?? 0) : 0;
+    const available = product ? Math.max(0, limitFor(product) - current) : 0;
+    const quantity = Math.min(item.quantity, available);
+    if (quantity) cart.set(product.id, current + quantity);
+    added += quantity;
+    if (quantity < item.quantity) missing.push(`${item.name} × ${item.quantity - quantity}`);
+  }
+  return { added, missing };
+}
