@@ -3,7 +3,9 @@ body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding
 main { width: min(100%, 680px); padding: clamp(24px, 5vw, 56px); background: white; border: 1px solid #dbe1ed; border-radius: 20px; }
 h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; }
 p { line-height: 1.6; }
-.eyebrow { color: #435371; }
-a { color: #174bc0; text-underline-offset: 4px; }
-a:focus-visible { outline: 3px solid #174bc0; outline-offset: 5px; }
-#status { color: #285534; }
+section { margin-top: 28px; }
+ul { padding: 0; list-style: none; }
+li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; border-bottom: 1px solid #dbe1ed; }
+button { padding: 6px 12px; border: 1px solid #174bc0; border-radius: 8px; background: white; color: #174bc0; font: inherit; cursor: pointer; }
+button:hover { background: #edf2ff; }
+button:focus-visible { outline: 3px solid #174bc0; outline-offset: 3px; }

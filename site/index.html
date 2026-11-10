@@ -3,18 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Наш магазин — старт</title>
+  <title>Czuze — космический паёк</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="./app.js" defer></script>
 </head>
 <body>
   <main>
-    <img src="./assets/shop.svg" width="80" height="80" alt="Вывеска магазина">
-    <p class="eyebrow">AI-воркшоп · ИТМО</p>
-    <h1>Здесь будет ваш магазин</h1>
-    <p>Придумайте тему, добавьте каталог и соберите первую корзину.</p>
-    <p id="status" role="status">JavaScript ещё не запущен.</p>
-    <a href="https://github.com/itmo-workshop-09-11-2026/workshop-guide/blob/main/docs/task.md">Открыть задание</a>
+    <img src="./assets/shop.svg" width="80" height="80" alt="">
+    <h1>Czuze — космический паёк</h1>
+    <p>Соберите запас еды для следующего полёта.</p>
+    <section aria-labelledby="catalog-title">
+      <h2 id="catalog-title">Каталог</h2>
+      <ul id="catalog"></ul>
+    </section>
+    <section aria-labelledby="cart-title">
+      <h2 id="cart-title">Корзина</h2>
+      <p id="empty">Корзина пуста.</p>
+      <ul id="cart" hidden></ul>
+      <p role="status"><strong>Итого: <span id="total">0 ₽</span></strong></p>
+    </section>
   </main>
 </body>
 </html>
