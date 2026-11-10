@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 168">
+  <defs>
+    <linearGradient id="cup" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#f7d4a0"/>
+      <stop offset="1" stop-color="#c9946a"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="121" cy="142" rx="63" ry="11" fill="#101410" opacity=".65"/>
+  <g transform="rotate(8 121 100)">
+    <path d="m83 61 77 0-9 68c-1 8-5 12-13 12h-34c-8 0-12-4-13-12Z" fill="url(#cup)" stroke="#ffdfb6" stroke-width="2"/>
+    <path d="M87 87h69l-4 33H91Z" fill="#75463c"/>
+    <rect x="78" y="55" width="87" height="12" rx="5" fill="#374039" stroke="#adb69c" stroke-width="2"/>
+    <path d="M90 55l6-9h51l6 9" fill="#374039" stroke="#adb69c" stroke-width="2"/>
+    <path d="m109 98 6 5-6 5m12 0h11" fill="none" stroke="#e3faac" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path d="M109 38c-5-7 6-9 4-16m18 19c-5-7 6-9 4-16" fill="none" stroke="#c4ef73" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+</svg>

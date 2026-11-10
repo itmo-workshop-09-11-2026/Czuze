@@ -3,25 +3,62 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Czuze — космический паёк</title>
+  <meta name="theme-color" content="#101111">
+  <title>Czuze — Лавка отладчика</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="./app.js" defer></script>
 </head>
 <body>
-  <main>
-    <img src="./assets/shop.svg" width="80" height="80" alt="">
-    <h1>Czuze — космический паёк</h1>
-    <p>Соберите запас еды для следующего полёта.</p>
-    <section aria-labelledby="catalog-title">
-      <h2 id="catalog-title">Каталог</h2>
-      <ul id="catalog"></ul>
-    </section>
-    <section aria-labelledby="cart-title">
-      <h2 id="cart-title">Корзина</h2>
-      <p id="empty">Корзина пуста.</p>
-      <ul id="cart" hidden></ul>
-      <p role="status"><strong>Итого: <span id="total">0 ₽</span></strong></p>
-    </section>
-  </main>
+  <div class="shell">
+    <header class="topbar">
+      <span class="brand"><span aria-hidden="true">&gt;_</span> CZUZE<span class="muted"> / shop</span></span>
+      <a href="#cart-title" class="cart-link">Корзина <span id="count">0</span></a>
+    </header>
+    <main>
+      <header class="hero">
+        <p class="eyebrow">// DEBUG KIT · 001</p>
+        <h1>Лавка<br><span>отладчика<span class="cursor" aria-hidden="true"></span></span></h1>
+        <p class="intro">Утка выслушает. Esc даст передышку. Кофе поможет начать заново.</p>
+      </header>
+      <div class="workspace">
+        <section aria-labelledby="catalog-title">
+          <div class="section-heading">
+            <h2 id="catalog-title">Каталог</h2>
+            <span class="muted">03 позиции</span>
+          </div>
+          <ul id="catalog"></ul>
+        </section>
+        <section class="cart-panel" aria-labelledby="cart-title">
+          <div class="section-heading">
+            <h2 id="cart-title" tabindex="-1">Корзина</h2>
+            <span class="muted">cart.log</span>
+          </div>
+          <div class="cart-body">
+            <p id="empty">Ноль товаров. Ноль ошибок.</p>
+            <ul id="cart" hidden></ul>
+          </div>
+          <p class="cart-event" id="cart-event" role="status"></p>
+          <p class="cart-total"><span>Итого</span><strong id="total">0 ₽</strong></p>
+        </section>
+      </div>
+    </main>
+    <footer class="footer"><span>CZUZE / 01</span><span>// Учебный магазин</span></footer>
+  </div>
+  <template id="product-template">
+    <li class="product">
+      <div class="product-art">
+        <span class="product-id"></span>
+        <img alt="" width="240" height="168">
+      </div>
+      <div class="product-info">
+        <h3></h3>
+        <p></p>
+        <div class="product-actions">
+          <strong class="price"></strong>
+          <button type="button" class="add">Добавить <span aria-hidden="true">+</span></button>
+        </div>
+      </div>
+    </li>
+  </template>
 </body>
 </html>
