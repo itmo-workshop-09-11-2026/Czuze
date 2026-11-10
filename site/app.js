@@ -203,7 +203,7 @@ function renderProduct() {
   }
   $("#view-title").textContent = product.name;
   $("#product-view").hidden = false;
-  $("#duck-model-launch").hidden = product.id !== "duck";
+  productModelViewer.select(product);
   $("#detail-category").textContent = product.category;
   $("#detail-description").textContent = product.description;
   $("#detail-stock").textContent = `Остаток: ${product.stock} шт.`;

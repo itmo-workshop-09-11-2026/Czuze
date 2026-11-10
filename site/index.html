@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101111">
   <title>Czuze — Лавка отладчика</title>
-  <link rel="stylesheet" href="./styles.css?v=20261110-duck-3d">
-  <script src="./catalog.js?v=20261110-duck-3d" defer></script>
-  <script src="./shop-mode.js?v=20261110-duck-3d" defer></script>
-  <script src="./shop-rules.js?v=20261110-duck-3d" defer></script>
-  <script src="./app.js?v=20261110-duck-3d" defer></script>
-  <script src="./duck-model.js?v=20261110-duck-3d" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20261110-model-gallery">
+  <script src="./catalog.js?v=20261110-model-gallery" defer></script>
+  <script src="./shop-mode.js?v=20261110-model-gallery" defer></script>
+  <script src="./shop-rules.js?v=20261110-model-gallery" defer></script>
+  <script src="./product-models.js?v=20261110-model-gallery" defer></script>
+  <script src="./app.js?v=20261110-model-gallery" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -86,7 +86,7 @@
             <p id="detail-stock" class="muted"></p>
             <strong id="detail-price" class="price"></strong>
             <div id="detail-actions" class="buy-controls"></div>
-            <button id="duck-model-launch" class="add" type="button" hidden>Покрутить в 3D ↻</button>
+            <button id="product-model-launch" class="add" type="button" hidden>Покрутить в 3D ↻</button>
             <button id="detail-favorite" class="secondary" type="button" aria-pressed="false"></button>
             <a href="?view=catalog" class="hero-link">← В каталог</a>
           </div>
@@ -100,19 +100,22 @@
     </main>
     <footer class="footer"><span>CZUZE / 01</span><span>// Учебный магазин</span></footer>
   </div>
-  <dialog id="duck-model-dialog" aria-labelledby="duck-model-title">
+  <dialog id="product-model-dialog" aria-labelledby="product-model-title">
     <header class="model-header">
-      <div><p class="eyebrow">// OBJECT VIEWER</p><h2 id="duck-model-title">Резиновая утка в 3D</h2></div>
+      <div><p class="eyebrow">// OBJECT VIEWER</p><h2 id="product-model-title">3D-просмотр</h2></div>
       <form method="dialog"><button type="submit" class="secondary" aria-label="Закрыть 3D-просмотр">×</button></form>
     </header>
-    <p id="duck-model-hint" class="muted">Потяните утку мышью или пальцем. На клавиатуре используйте стрелки.</p>
-    <canvas id="duck-model" width="720" height="500" tabindex="0" aria-label="Вращаемая 3D-модель утки" aria-describedby="duck-model-hint"></canvas>
-    <p id="duck-model-unavailable" class="muted" hidden>3D-просмотр недоступен в этом браузере. Фотографии есть в карточке товара.</p>
+    <p id="product-model-hint" class="muted">Тяните модель мышью или пальцем. Стрелки поворачивают, колёсико и клавиши + / − меняют масштаб.</p>
+    <canvas id="product-model" width="720" height="500" tabindex="0" aria-label="Вращаемая 3D-модель товара" aria-describedby="product-model-hint"></canvas>
+    <p id="product-model-unavailable" class="muted" hidden>3D-просмотр недоступен в этом браузере. Фотографии есть в карточке товара.</p>
     <div class="model-controls">
       <button type="button" class="secondary" data-model-turn="-1" aria-label="Повернуть влево">←</button>
       <button type="button" class="secondary" data-model-turn="1" aria-label="Повернуть вправо">→</button>
-      <button type="button" class="secondary" id="duck-model-reset">Исходный вид</button>
-      <span id="duck-model-angle" class="muted" aria-hidden="true"></span>
+      <button type="button" class="secondary" data-model-zoom="-1" aria-label="Уменьшить масштаб">−</button>
+      <button type="button" class="secondary" data-model-zoom="1" aria-label="Увеличить масштаб">+</button>
+      <button type="button" class="secondary" id="product-model-spin" aria-pressed="false">Автовращение</button>
+      <button type="button" class="secondary" id="product-model-reset">Исходный вид</button>
+      <span id="product-model-angle" class="muted" aria-hidden="true"></span>
     </div>
   </dialog>
   <dialog id="duck-dialog" aria-labelledby="duck-title">

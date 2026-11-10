@@ -329,7 +329,7 @@ button:disabled { opacity: .54; cursor: default; }
   #duck-dialog[open] { animation: view-enter 220ms ease-out both; }
 }
 
-#duck-model-dialog {
+#product-model-dialog {
   width: min(690px, calc(100% - 28px));
   max-height: calc(100% - 28px);
   padding: clamp(12px, 3vw, 22px);
@@ -338,11 +338,11 @@ button:disabled { opacity: .54; cursor: default; }
   color: var(--text);
   background: var(--panel);
 }
-#duck-model-dialog::backdrop { background: #090c0be0; }
+#product-model-dialog::backdrop { background: #090c0be0; }
 .model-header, .model-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .model-header .eyebrow { margin: 0 0 5px; }
-#duck-model-hint { font-size: .85rem; }
-#duck-model {
+#product-model-hint { font-size: .85rem; }
+#product-model {
   display: block;
   width: 100%;
   height: auto;
@@ -351,11 +351,18 @@ button:disabled { opacity: .54; cursor: default; }
   background:
     linear-gradient(#a2c48e12 1px, transparent 1px) 0 0 / 24px 24px,
     linear-gradient(90deg, #a2c48e12 1px, transparent 1px) 0 0 / 24px 24px,
-    radial-gradient(ellipse at 50% 30%, #30492a, #131d14 68%);
+    radial-gradient(ellipse at 50% 30%, var(--model-tint, #30492a), #131d14 68%);
   touch-action: none;
   cursor: grab;
 }
-#duck-model.dragging { cursor: grabbing; }
+#product-model.dragging { cursor: grabbing; }
 .model-controls { justify-content: flex-start; margin-top: 12px; }
 .model-controls button { border-color: var(--line); }
-#duck-model-angle { margin-left: auto; font: .75rem var(--mono); }
+#product-model-angle { margin-left: auto; font: .75rem var(--mono); }
+
+#product-model-launch { border-radius: 6px; }
+#product-model-spin[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 480px) {
+  .model-controls button { min-height: 44px; }
+  #product-model-angle { flex-basis: 100%; text-align: right; }
+}
