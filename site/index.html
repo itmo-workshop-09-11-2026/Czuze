@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101111">
   <title>Czuze — Лавка отладчика</title>
-  <link rel="stylesheet" href="./styles.css?v=20261110-catalog-fix">
-  <script src="./catalog.js?v=20261110-catalog-fix" defer></script>
-  <script src="./shop-mode.js?v=20261110-catalog-fix" defer></script>
-  <script src="./shop-rules.js?v=20261110-catalog-fix" defer></script>
-  <script src="./app.js?v=20261110-catalog-fix" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20261110-duck-3d">
+  <script src="./catalog.js?v=20261110-duck-3d" defer></script>
+  <script src="./shop-mode.js?v=20261110-duck-3d" defer></script>
+  <script src="./shop-rules.js?v=20261110-duck-3d" defer></script>
+  <script src="./app.js?v=20261110-duck-3d" defer></script>
+  <script src="./duck-model.js?v=20261110-duck-3d" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -85,6 +86,7 @@
             <p id="detail-stock" class="muted"></p>
             <strong id="detail-price" class="price"></strong>
             <div id="detail-actions" class="buy-controls"></div>
+            <button id="duck-model-launch" class="add" type="button" hidden>Покрутить в 3D ↻</button>
             <button id="detail-favorite" class="secondary" type="button" aria-pressed="false"></button>
             <a href="?view=catalog" class="hero-link">← В каталог</a>
           </div>
@@ -98,6 +100,21 @@
     </main>
     <footer class="footer"><span>CZUZE / 01</span><span>// Учебный магазин</span></footer>
   </div>
+  <dialog id="duck-model-dialog" aria-labelledby="duck-model-title">
+    <header class="model-header">
+      <div><p class="eyebrow">// OBJECT VIEWER</p><h2 id="duck-model-title">Резиновая утка в 3D</h2></div>
+      <form method="dialog"><button type="submit" class="secondary" aria-label="Закрыть 3D-просмотр">×</button></form>
+    </header>
+    <p id="duck-model-hint" class="muted">Потяните утку мышью или пальцем. На клавиатуре используйте стрелки.</p>
+    <canvas id="duck-model" width="720" height="500" tabindex="0" aria-label="Вращаемая 3D-модель утки" aria-describedby="duck-model-hint"></canvas>
+    <p id="duck-model-unavailable" class="muted" hidden>3D-просмотр недоступен в этом браузере. Фотографии есть в карточке товара.</p>
+    <div class="model-controls">
+      <button type="button" class="secondary" data-model-turn="-1" aria-label="Повернуть влево">←</button>
+      <button type="button" class="secondary" data-model-turn="1" aria-label="Повернуть вправо">→</button>
+      <button type="button" class="secondary" id="duck-model-reset">Исходный вид</button>
+      <span id="duck-model-angle" class="muted" aria-hidden="true"></span>
+    </div>
+  </dialog>
   <dialog id="duck-dialog" aria-labelledby="duck-title">
     <header class="duck-heading">
       <img src="./assets/duck-front.jpg" width="50" height="50" alt="" loading="lazy">
