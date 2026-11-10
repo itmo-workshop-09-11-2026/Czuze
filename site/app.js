@@ -451,3 +451,60 @@ window.addEventListener("pageshow", event => {
 });
 
 start();
+
+const duckQuestions = [
+  ["Сбой", "Что должно было произойти и что вышло на самом деле?"],
+  ["Воспроизведение", "Каким самым коротким способом можно повторить сбой?"],
+  ["Проверка", "Какую одну гипотезу ты проверишь первой?"],
+];
+const duckAnswers = [];
+const duckDialog = $("#duck-dialog");
+const duckForm = $("#duck-form");
+const duckAnswer = $("#duck-answer");
+
+function renderDuckStep() {
+  const step = duckAnswers.length;
+  const complete = step === duckQuestions.length;
+  duckForm.hidden = complete;
+  $("#duck-result").hidden = !complete;
+  if (complete) {
+    const summary = $("#duck-summary");
+    summary.replaceChildren();
+    duckQuestions.forEach(([label], index) => {
+      const term = document.createElement("dt");
+      const description = document.createElement("dd");
+      term.textContent = label;
+      description.textContent = duckAnswers[index];
+      summary.append(term, description);
+    });
+    $("#duck-result-title").focus();
+  } else {
+    $("#duck-step").textContent = `Шаг ${step + 1} из ${duckQuestions.length}`;
+    $("#duck-question").textContent = duckQuestions[step][1];
+    $("#duck-next").textContent = step + 1 === duckQuestions.length ? "Собрать план →" : "Дальше →";
+    duckAnswer.focus();
+  }
+}
+
+$("#duck-launch").addEventListener("click", () => {
+  duckDialog.showModal();
+  renderDuckStep();
+});
+
+duckForm.addEventListener("submit", event => {
+  event.preventDefault();
+  const answer = duckAnswer.value.trim();
+  if (!answer) {
+    duckAnswer.value = "";
+    duckAnswer.reportValidity();
+    return;
+  }
+  duckAnswers.push(answer);
+  duckForm.reset();
+  renderDuckStep();
+});
+
+$("#duck-restart").addEventListener("click", () => {
+  duckAnswers.length = 0;
+  renderDuckStep();
+});

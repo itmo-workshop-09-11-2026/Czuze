@@ -28,6 +28,7 @@
         <h1>Лавка<br><span>отладчика<span class="cursor" aria-hidden="true"></span></span></h1>
         <p class="intro">Утка выслушает. Esc даст передышку. Кофе поможет начать заново.</p>
         <a class="hero-link" href="#catalog-title">Собрать набор <span aria-hidden="true">↓</span></a>
+        <button class="secondary duck-launch" id="duck-launch" type="button">Спросить утку <span aria-hidden="true">↗</span></button>
         <div class="hero-terminal" aria-hidden="true"><b>debug-kit / session</b><span>$ git status</span><span>✔ рабочий стол готов</span><span>✔ кофе подключён</span><strong>→ ждём твоего коммита</strong></div>
       </header>
       <p id="app-status" class="sr-only" role="status"></p>
@@ -97,6 +98,24 @@
     </main>
     <footer class="footer"><span>CZUZE / 01</span><span>// Учебный магазин</span></footer>
   </div>
+  <dialog id="duck-dialog" aria-labelledby="duck-title">
+    <header class="duck-heading">
+      <img src="./assets/duck-front.jpg" width="50" height="50" alt="" loading="lazy">
+      <div><p class="eyebrow">// DEBUG SESSION</p><h2 id="duck-title">Утка-отладчик</h2></div>
+      <form method="dialog"><button type="submit" class="secondary" aria-label="Закрыть">×</button></form>
+    </header>
+    <form id="duck-form">
+      <p id="duck-step" class="muted"></p>
+      <label id="duck-question" for="duck-answer"></label>
+      <textarea id="duck-answer" rows="4" maxlength="500" required></textarea>
+      <button class="add" id="duck-next" type="submit">Дальше →</button>
+    </form>
+    <section id="duck-result" hidden aria-labelledby="duck-result-title">
+      <h3 id="duck-result-title" tabindex="-1">План отладки</h3>
+      <dl id="duck-summary"></dl>
+      <button class="add" id="duck-restart" type="button">Начать заново</button>
+    </section>
+  </dialog>
   <template id="product-template">
     <li class="product">
       <div class="product-art">
