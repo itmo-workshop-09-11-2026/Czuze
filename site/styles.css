@@ -280,6 +280,8 @@ button:disabled { opacity: .54; cursor: default; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (prefers-reduced-motion: no-preference) {
+  .cursor { animation: cursor-blink 1s steps(1, end) infinite; }
+  @keyframes cursor-blink { 50% { opacity: 0; } }
   .view-heading, .cart-panel, .product-detail, .orders-view { animation: view-enter 270ms ease-out both; }
   .buy-controls > span, .order-success { animation: confirm-pop 240ms ease-out both; }
   .favorite, .add, .shop-nav a { transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease; }
