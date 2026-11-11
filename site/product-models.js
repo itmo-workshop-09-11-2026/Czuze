@@ -7,184 +7,269 @@ const productModelViewer = (() => {
   const reset = document.querySelector("#product-model-reset");
   const launch = document.querySelector("#product-model-launch");
   const spin = document.querySelector("#product-model-spin");
+  const hats = document.querySelector("#product-model-hat");
+  const unavailable = document.querySelector("#product-model-unavailable");
   const models = {
-    duck: { make: makeDuck, yaw: -0.27, pitch: -0.12, tint: "#30492a" },
-    escape: { make: makeKey, yaw: -0.37, pitch: 0.49, tint: "#374b1b", label: { text: "Esc", origin: [0, 0.422, 0], down: [0, 0, 1], normal: [0, 1, 0], color: "#243818" } },
-    coffee: { make: makeCoffee, yaw: 0.23, pitch: 0.19, tint: "#493122", label: { text: ">_", origin: [0, 0.02, 0.553], down: [0, -1, 0], normal: [0, 0, 1], color: "#dbecad" } },
+    duck: { make: productGeometry.makeDuck, yaw: -0.27, pitch: 0.10, tint: "#30492a" },
+    escape: { make: productGeometry.makeKey, yaw: -0.37, pitch: 0.49, tint: "#374b1b" },
+    coffee: { make: productGeometry.makeCoffee, yaw: 0.23, pitch: 0.19, tint: "#493122" },
   };
   let model;
   let yaw, pitch, zoom;
-  let context;
-  let parts;
+  let renderer;
+  let meshes;
+  let baseParts;
+  let sceneCenter;
+  let sceneRadius;
   let drag;
   let frame;
   let spinning = false;
   let lastFrame;
 
-  function ellipsoid(center, radii, color, tilt = 0, [columns, rows] = [24, 14]) {
-    const [cx, cy, cz] = center;
-    const [rx, ry, rz] = radii;
-    const cosine = Math.cos(tilt);
-    const sine = Math.sin(tilt);
-    const vertices = [];
-    const faces = [];
-    for (let row = 0; row <= rows; row++) {
-      const latitude = Math.PI * row / rows;
-      for (let column = 0; column < columns; column++) {
-        const longitude = 2 * Math.PI * column / columns;
-        const x = Math.sin(latitude) * Math.cos(longitude);
-        const y = Math.cos(latitude);
-        const z = Math.sin(latitude) * Math.sin(longitude);
-        vertices.push([cx + x * rx * cosine - y * ry * sine, cy + x * rx * sine + y * ry * cosine, cz + z * rz]);
+  function createRenderer() {
+    const gl = canvas.getContext("webgl", { alpha: true, antialias: true, premultipliedAlpha: false });
+    if (!gl) throw new Error("WebGL unavailable");
+
+    function compile(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const message = gl.getShaderInfoLog(shader);
+        gl.deleteShader(shader);
+        throw new Error(message);
       }
+      return shader;
     }
-    for (let row = 0; row < rows; row++) {
-      for (let column = 0; column < columns; column++) {
-        const next = (column + 1) % columns;
-        const indices = [row * columns + column, row * columns + next, (row + 1) * columns + next, (row + 1) * columns + column];
-        const latitude = Math.PI * (row + 0.5) / rows;
-        const longitude = 2 * Math.PI * (column + 0.5) / columns;
-        const x = Math.sin(latitude) * Math.cos(longitude) / rx;
-        const y = Math.cos(latitude) / ry;
-        const z = Math.sin(latitude) * Math.sin(longitude) / rz;
-        const length = Math.hypot(x, y, z);
-        faces.push({ indices, normal: [(x * cosine - y * sine) / length, (x * sine + y * cosine) / length, z / length] });
+
+    const vertexShader = compile(gl.VERTEX_SHADER, `
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      attribute vec2 aUv;
+      uniform mat3 uRotation;
+      uniform vec3 uCenter;
+      uniform float uRadius;
+      uniform float uZoom;
+      uniform float uAspect;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec3 vLocal;
+      varying vec2 vUv;
+      void main() {
+        vec3 position = uRotation * (aPosition - uCenter);
+        vPosition = position;
+        vLocal = aPosition;
+        vNormal = uRotation * aNormal;
+        vUv = aUv;
+        float scale = uZoom / (uRadius * 1.12);
+        gl_Position = vec4(position.x * scale / uAspect, position.y * scale, -position.z / (uRadius * 4.0), 1.0);
       }
+    `);
+    const fragmentShader = compile(gl.FRAGMENT_SHADER, `
+      precision mediump float;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec3 vLocal;
+      varying vec2 vUv;
+      uniform vec3 uColor;
+      uniform float uRoughness;
+      uniform float uGrain;
+      uniform float uKind;
+      uniform sampler2D uTexture;
+      float noise(vec3 point) {
+        return fract(sin(dot(point, vec3(12.9898, 78.233, 31.345))) * 43758.5453);
+      }
+      void main() {
+        float alpha = 1.0;
+        if (uKind > 0.5) {
+          alpha = texture2D(uTexture, vUv).a;
+          if (alpha < 0.015) discard;
+        }
+        if (uKind > 1.5) {
+          gl_FragColor = vec4(0.008, 0.015, 0.008, alpha * 0.46);
+          return;
+        }
+        vec3 normal = normalize(vNormal);
+        vec3 key = normalize(vec3(-0.6, 0.9, 1.1));
+        vec3 fill = normalize(vec3(0.9, 0.3, 0.6));
+        vec3 rim = normalize(vec3(0.2, 0.8, -0.9));
+        float light = 0.32 + 0.65 * max(dot(normal, key), 0.0)
+          + 0.22 * max(dot(normal, fill), 0.0) + 0.18 * max(dot(normal, rim), 0.0);
+        vec3 base = pow(uColor, vec3(2.2));
+        float surfaceNoise = 1.0;
+        if (uGrain > 0.5) {
+          surfaceNoise = 0.975 + 0.045 * noise(floor(vLocal * 340.0));
+        }
+        if (uGrain > 1.5) {
+          float rib = sin(vUv.x * 420.0) * sin(vUv.y * 240.0);
+          surfaceNoise *= 0.94 + 0.06 * rib;
+        }
+        vec3 view = vec3(0.0, 0.0, 1.0);
+        vec3 halfVector = normalize(key + view);
+        float shine = mix(180.0, 18.0, uRoughness);
+        float specular = pow(max(dot(normal, halfVector), 0.0), shine)
+          * mix(0.42, 0.045, uRoughness);
+        float fresnel = pow(1.0 - max(normal.z, 0.0), 4.0) * 0.045;
+        vec3 lit = base * light * surfaceNoise + vec3(specular + fresnel);
+        gl_FragColor = vec4(pow(lit, vec3(1.0 / 2.2)), alpha);
+      }
+    `);
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const message = gl.getProgramInfoLog(program);
+      gl.deleteProgram(program);
+      throw new Error(message);
     }
-    return { vertices, faces, color };
+    gl.useProgram(program);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
+    const attributes = ["aPosition", "aNormal", "aUv"].map(name => gl.getAttribLocation(program, name));
+    const uniforms = Object.fromEntries(
+      ["uRotation", "uCenter", "uRadius", "uZoom", "uAspect", "uColor", "uRoughness", "uGrain", "uKind", "uTexture"]
+        .map(name => [name, gl.getUniformLocation(program, name)]),
+    );
+    attributes.forEach(attribute => gl.enableVertexAttribArray(attribute));
+    gl.uniform1i(uniforms.uTexture, 0);
+
+    function texture(kind) {
+      const image = document.createElement("canvas");
+      image.width = 512;
+      image.height = 256;
+      const context = image.getContext("2d");
+      if (kind === "shadow") {
+        const gradient = context.createRadialGradient(256, 128, 0, 256, 128, 245);
+        gradient.addColorStop(0, "#000000d9");
+        gradient.addColorStop(0.35, "#00000099");
+        gradient.addColorStop(1, "#00000000");
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 512, 256);
+      } else {
+        context.fillStyle = "white";
+        context.font = "bold 174px monospace";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(kind, 256, 130);
+      }
+      const result = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, result);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return result;
+    }
+
+    return {
+      upload(part) {
+        const vertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, part.vertices, gl.STATIC_DRAW);
+        const indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, part.indices, gl.STATIC_DRAW);
+        return {
+          vertexBuffer, indexBuffer, count: part.indices.length, color: part.color,
+          roughness: part.roughness ?? 0.4, grain: part.grain ?? 0,
+          kind: part.shadow ? 2 : part.label ? 1 : 0,
+          texture: part.shadow ? texture("shadow") : part.label ? texture(part.label) : null,
+        };
+      },
+      dispose(mesh) {
+        gl.deleteBuffer(mesh.vertexBuffer);
+        gl.deleteBuffer(mesh.indexBuffer);
+        if (mesh.texture) gl.deleteTexture(mesh.texture);
+      },
+      draw(meshes, rotation, center, radius, zoom) {
+        const width = Math.round(canvas.clientWidth * Math.min(2, window.devicePixelRatio || 1));
+        const height = Math.round(width * 500 / 720);
+        if (!width || !height) return;
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        gl.viewport(0, 0, width, height);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.uniformMatrix3fv(uniforms.uRotation, false, rotation);
+        gl.uniform3fv(uniforms.uCenter, center);
+        gl.uniform1f(uniforms.uRadius, radius);
+        gl.uniform1f(uniforms.uZoom, zoom);
+        gl.uniform1f(uniforms.uAspect, width / height);
+        for (const mesh of meshes) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vertexBuffer);
+          gl.vertexAttribPointer(attributes[0], 3, gl.FLOAT, false, 32, 0);
+          gl.vertexAttribPointer(attributes[1], 3, gl.FLOAT, false, 32, 12);
+          gl.vertexAttribPointer(attributes[2], 2, gl.FLOAT, false, 32, 24);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indexBuffer);
+          gl.uniform3fv(uniforms.uColor, mesh.color);
+          gl.uniform1f(uniforms.uRoughness, mesh.roughness);
+          gl.uniform1f(uniforms.uGrain, mesh.grain);
+          gl.uniform1f(uniforms.uKind, mesh.kind);
+          gl.bindTexture(gl.TEXTURE_2D, mesh.texture);
+          gl.depthMask(mesh.kind !== 2);
+          gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
+        }
+        gl.depthMask(true);
+      },
+    };
   }
 
-  function makeDuck() {
-    const gold = [255, 202, 49];
-    const amber = [244, 171, 34];
-    const orange = [245, 114, 25];
-    const detailedMesh = [56, 34];
-    const parts = [
-      ellipsoid([0.12, -0.30, 0], [0.86, 0.49, 0.54], gold, 0, detailedMesh),
-      ellipsoid([0.74, -0.14, 0], [0.39, 0.22, 0.31], gold, 0.68, detailedMesh),
-      ellipsoid([-0.43, 0.37, 0], [0.51, 0.55, 0.43], gold, 0, detailedMesh),
-      ellipsoid([-0.93, 0.20, 0], [0.32, 0.105, 0.28], [211, 82, 16], 0.09, detailedMesh),
-      ellipsoid([-0.96, 0.29, 0], [0.33, 0.105, 0.28], orange, -0.12, detailedMesh),
-    ];
-    for (const side of [-1, 1]) {
-      parts.push(
-        ellipsoid([0.20, -0.22, side * 0.43], [0.49, 0.23, 0.14], amber, 0.14, detailedMesh),
-        ellipsoid([-0.60, 0.50, side * 0.38], [0.079, 0.102, 0.062], [28, 22, 14]),
-        ellipsoid([-0.625, 0.535, side * 0.429], [0.024, 0.029, 0.016], [255, 249, 218]),
-      );
-    }
-    return parts;
-  }
-
-  function turnedShape(profile, color, sides = 36, square = 1) {
-    const vertices = [];
-    const faces = [];
-    const power = value => Math.sign(value) * Math.abs(value) ** square;
-    for (const [y, radius] of profile) {
-      for (let i = 0; i < sides; i++) {
-        const theta = i * Math.PI * 2 / sides;
-        vertices.push([radius * power(Math.cos(theta)), y, radius * power(Math.sin(theta))]);
+  function loadMeshes() {
+    const parts = [...baseParts, ...(model === models.duck ? productGeometry.makeHat(hats.value) : [])];
+    const min = [Infinity, Infinity, Infinity];
+    const max = [-Infinity, -Infinity, -Infinity];
+    for (const part of parts) {
+      for (let vertex = 0; vertex < part.vertices.length; vertex += 8) {
+        for (let axis = 0; axis < 3; axis++) {
+          min[axis] = Math.min(min[axis], part.vertices[vertex + axis]);
+          max[axis] = Math.max(max[axis], part.vertices[vertex + axis]);
+        }
       }
     }
-    for (let row = 0; row < profile.length - 1; row++) {
-      const [y, radius] = profile[row];
-      const [nextY, nextRadius] = profile[row + 1];
-      for (let i = 0; i < sides; i++) {
-        const j = (i + 1) % sides;
-        const first = row * sides + i;
-        const second = row * sides + j;
-        const top = (row + 1) * sides;
-        const [ax, , az] = vertices[radius ? first : top + i];
-        const [bx, , bz] = vertices[radius ? second : top + j];
-        const dx = bx - ax, dz = bz - az;
-        const slope = Math.hypot(dx, dz) * (nextRadius - radius) / (radius || nextRadius);
-        const normal = [dz * (nextY - y), -slope, -dx * (nextY - y)];
-        const length = Math.hypot(...normal);
-        faces.push({ indices: [first, second, top + j, top + i], normal: normal.map(value => value / length) });
+    sceneCenter = min.map((value, axis) => (value + max[axis]) / 2);
+    sceneRadius = 0;
+    for (const part of parts) {
+      for (let vertex = 0; vertex < part.vertices.length; vertex += 8) {
+        sceneRadius = Math.max(sceneRadius, Math.hypot(...sceneCenter.map((value, axis) => part.vertices[vertex + axis] - value)));
       }
     }
-    return { vertices, faces, color };
-  }
-
-  function makeKey() {
-    return [
-      turnedShape([[-0.42, 0], [-0.42, 0.83], [-0.37, 0.91], [-0.18, 0.91], [-0.14, 0.88], [-0.14, 0]], [85, 126, 39], 48, 0.23),
-      turnedShape([[-0.23, 0], [-0.23, 0.87], [-0.14, 0.88], [0.34, 0.72], [0.42, 0.65], [0.42, 0]], [186, 240, 75], 48, 0.23),
-    ];
-  }
-
-  function makeCoffee() {
-    return [
-      turnedShape([[-0.89, 0], [-0.89, 0.37], [-0.83, 0.42], [0.67, 0.57], [0.72, 0.56], [0.72, 0]], [213, 158, 105]),
-      turnedShape([[-0.41, 0.46], [-0.39, 0.48], [0.33, 0.55], [0.36, 0.54]], [112, 61, 41]),
-      turnedShape([[0.62, 0], [0.62, 0.59], [0.68, 0.64], [0.75, 0.64], [0.80, 0.59], [0.91, 0.53], [0.93, 0.50], [0.93, 0]], [53, 57, 53]),
-      ellipsoid([0.13, 0.932, 0.29], [0.12, 0.014, 0.058], [16, 18, 16]),
-    ];
+    const y = min[1] - 0.035;
+    const radius = sceneRadius * 1.45;
+    const shadow = {
+      vertices: new Float32Array([
+        -radius, y, -radius, 0, 1, 0, 0, 0,
+        radius, y, -radius, 0, 1, 0, 1, 0,
+        -radius, y, radius, 0, 1, 0, 0, 1,
+        radius, y, radius, 0, 1, 0, 1, 1,
+      ]),
+      indices: new Uint16Array([0, 1, 2, 1, 2, 3]), color: [0, 0, 0], shadow: true,
+    };
+    if (meshes) meshes.forEach(renderer.dispose);
+    meshes = [shadow, ...parts].map(renderer.upload);
+    canvas.dataset.triangles = parts.reduce((sum, part) => sum + part.indices.length / 3, 0);
+    canvas.dataset.hat = model === models.duck ? hats.value : "none";
   }
 
   function draw() {
+    if (!renderer || !meshes) return;
     const cy = Math.cos(yaw), sy = Math.sin(yaw);
     const cp = Math.cos(pitch), sp = Math.sin(pitch);
-    const rotate = ([x, y, z]) => {
-      const depth = -x * sy + z * cy;
-      return [x * cy + z * sy, y * cp - depth * sp, y * sp + depth * cp];
-    };
-    const scale = 172 * zoom;
-    const project = ([x, y]) => [360 + x * scale, 253 - y * scale];
-    const visible = [];
-    for (const { vertices, faces, color } of parts) {
-      const points = vertices.map(rotate);
-      for (const { indices, normal } of faces) {
-        const [x, y, z] = rotate(normal);
-        if (z <= 0) continue;
-        const corners = indices.map(index => points[index]);
-        const depth = corners.reduce((sum, point) => sum + point[2], 0) / corners.length;
-        const light = Math.max(0, -0.33 * x + 0.62 * y + 0.71 * z);
-        visible.push({ corners, depth, color, light });
-      }
-    }
-    visible.sort((a, b) => a.depth - b.depth);
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "#0a100ab8";
-    context.beginPath();
-    context.ellipse(360, Math.min(472, 253 + 164 * zoom), 140 * zoom, 17 * zoom, 0, 0, Math.PI * 2);
-    context.fill();
-    for (const { corners, color, light } of visible) {
-      const channels = color.map(channel => Math.min(255, Math.round(channel * (0.48 + light * 0.55) + 39 * light ** 18)));
-      context.fillStyle = context.strokeStyle = `rgb(${channels.join(",")})`;
-      context.lineWidth = 0.9;
-      context.beginPath();
-      corners.forEach((corner, index) => {
-        const [screenX, screenY] = project(corner);
-        if (index === 0) context.moveTo(screenX, screenY);
-        else context.lineTo(screenX, screenY);
-      });
-      context.closePath();
-      context.fill();
-      context.stroke();
-    }
-    const label = model.label;
-    if (label && rotate(label.normal)[2] > 0.09) {
-      const [lx, ly, lz] = label.origin;
-      const [x, y] = project(rotate(label.origin));
-      const [xx, xy] = project(rotate([lx + 1, ly, lz]));
-      const [dx, dy] = project(rotate(label.origin.map((value, index) => value + label.down[index])));
-      context.save();
-      context.transform(xx - x, xy - y, dx - x, dy - y, x, y);
-      context.fillStyle = label.color;
-      context.font = "bold 0.46px monospace";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.fillText(label.text, 0, 0);
-      context.restore();
-    }
+    const rotation = [cy, sp * sy, -cp * sy, 0, cp, sp, sy, -sp * cy, cp * cy];
+    renderer.draw(meshes, rotation, sceneCenter, sceneRadius, zoom);
     const degrees = radians => Math.round(radians * 180 / Math.PI);
     angle.textContent = `${degrees(yaw)}° / ${degrees(pitch)}° · ${Math.round(zoom * 100)}%`;
   }
 
   function animate(now) {
     frame = undefined;
-    if (!dialog.open) return;
+    if (!dialog.open || document.hidden || !renderer) return;
     if (spinning && lastFrame !== undefined) {
       yaw += Math.min(40, now - lastFrame) * 0.00085;
       if (yaw > Math.PI) yaw -= 2 * Math.PI;
@@ -195,7 +280,7 @@ const productModelViewer = (() => {
   }
 
   function scheduleDraw() {
-    if (frame === undefined) frame = requestAnimationFrame(animate);
+    if (frame === undefined && dialog.open) frame = requestAnimationFrame(animate);
   }
 
   function setSpin(active) {
@@ -213,22 +298,41 @@ const productModelViewer = (() => {
   }
 
   function changeZoom(direction) {
-    zoom = Math.max(0.72, Math.min(1.34, zoom + direction * 0.1));
+    zoom = Math.max(0.65, Math.min(1.8, zoom + direction * 0.1));
     scheduleDraw();
+  }
+
+  function openModel() {
+    try {
+      renderer ??= createRenderer();
+      if (!meshes) {
+        baseParts ??= model.make();
+        loadMeshes();
+      }
+      unavailable.hidden = true;
+      canvas.hidden = false;
+      dialog.querySelector(".model-controls").hidden = false;
+      document.querySelector("#product-model-hats").hidden = model !== models.duck;
+      draw();
+      canvas.focus();
+    } catch (error) {
+      console.warn("3D viewer unavailable", error);
+      unavailable.hidden = false;
+      canvas.hidden = true;
+      dialog.querySelector(".model-controls").hidden = true;
+      document.querySelector("#product-model-hats").hidden = true;
+    }
   }
 
   launch.addEventListener("click", () => {
     dialog.showModal();
-    context ??= canvas.getContext("2d");
-    if (!context) {
-      canvas.hidden = true;
-      document.querySelector("#product-model-unavailable").hidden = false;
-      dialog.querySelector(".model-controls").hidden = true;
-      return;
-    }
-    parts ??= model.make();
-    draw();
-    canvas.focus();
+    openModel();
+  });
+  hats.addEventListener("change", () => {
+    if (!renderer || model !== models.duck) return;
+    loadMeshes();
+    document.querySelector("#product-model-hat-status").textContent = `Выбрано: ${hats.selectedOptions[0].textContent}`;
+    scheduleDraw();
   });
 
   canvas.addEventListener("pointerdown", event => {
@@ -249,6 +353,7 @@ const productModelViewer = (() => {
     canvas.classList.remove("dragging");
   });
   canvas.addEventListener("keydown", event => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (["+", "=", "-", "−"].includes(event.key)) {
       event.preventDefault();
       changeZoom(event.key === "+" || event.key === "=" ? 1 : -1);
@@ -260,7 +365,7 @@ const productModelViewer = (() => {
     turn(...directions[event.key]);
   });
   dialog.querySelectorAll("[data-model-turn]").forEach(button => {
-    button.addEventListener("click", () => turn(Number(button.dataset.modelTurn) * 0.28));
+    button.addEventListener("click", () => turn(Number(button.dataset.modelTurn)));
   });
   canvas.addEventListener("wheel", event => {
     if (event.ctrlKey || event.metaKey || !event.deltaY) return;
@@ -271,7 +376,26 @@ const productModelViewer = (() => {
     button.addEventListener("click", () => changeZoom(Number(button.dataset.modelZoom)));
   });
   spin.addEventListener("click", () => setSpin(!spinning));
-  dialog.addEventListener("close", () => setSpin(false));
+  dialog.addEventListener("close", () => {
+    setSpin(false);
+    cancelAnimationFrame(frame);
+    frame = undefined;
+  });
+  document.addEventListener("visibilitychange", () => {
+    lastFrame = undefined;
+    if (!document.hidden) scheduleDraw();
+  });
+  new ResizeObserver(scheduleDraw).observe(canvas);
+  canvas.addEventListener("webglcontextlost", event => {
+    event.preventDefault();
+    renderer = undefined;
+    meshes = undefined;
+    setSpin(false);
+    unavailable.hidden = false;
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    if (dialog.open) openModel();
+  });
 
   function resetView() {
     yaw = model.yaw;
@@ -286,7 +410,9 @@ const productModelViewer = (() => {
       model = Object.hasOwn(models, product.id) ? models[product.id] : undefined;
       launch.hidden = !model;
       if (!model) return;
-      parts = undefined;
+      if (meshes) meshes.forEach(renderer.dispose);
+      meshes = undefined;
+      baseParts = undefined;
       document.querySelector("#product-model-title").textContent = product.name + " в 3D";
       canvas.style.setProperty("--model-tint", model.tint);
       resetView();

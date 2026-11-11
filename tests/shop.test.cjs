@@ -42,3 +42,31 @@ vm.runInNewContext(fs.readFileSync("site/shop-rules.js", "utf8") + `
   assert.equal(readSavedShop("{broken", products).cart.size, 0);
 `, { assert });
 console.log("PASS search, sorting, favorites, quantities, discounts, repeat orders");
+
+vm.runInNewContext(fs.readFileSync("site/model-geometry.js", "utf8") + `
+  const duck = productGeometry.makeDuck();
+  const key = productGeometry.makeKey();
+  const coffee = productGeometry.makeCoffee();
+  const hats = ["santa", "tree", "winter"].map(style => productGeometry.makeHat(style));
+  const triangleCount = parts => parts.reduce((sum, part) => sum + part.indices.length / 3, 0);
+  assert(triangleCount(duck) > 150000);
+  assert(triangleCount(key) > 15000);
+  assert(triangleCount(coffee) > 50000);
+  for (const parts of [duck, key, coffee, ...hats]) {
+    assert(parts.length > 0);
+    for (const part of parts) {
+      const vertices = part.vertices.length / 8;
+      assert(vertices < 65536);
+      assert.equal(part.indices.length % 3, 0);
+      assert([...part.vertices].every(Number.isFinite));
+      assert([...part.indices].every(index => index < vertices));
+      for (let index = 0; index < part.vertices.length; index += 8) {
+        assert(Math.abs(Math.hypot(...part.vertices.slice(index + 3, index + 6)) - 1) < 0.00001);
+      }
+    }
+  }
+  assert.equal(productGeometry.makeHat("none").length, 0);
+  assert(key.some(part => part.label === "Esc"));
+  assert(coffee.some(part => part.label === ">_"));
+`, { assert });
+console.log("PASS detailed meshes, finite unit normals, GPU indices and all hats");

@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101111">
   <title>Czuze — Лавка отладчика</title>
-  <link rel="stylesheet" href="./styles.css?v=20261111-cursor">
-  <script src="./catalog.js?v=20261110-shop-fixes" defer></script>
-  <script src="./shop-mode.js?v=20261110-shop-fixes" defer></script>
-  <script src="./shop-rules.js?v=20261110-shop-fixes" defer></script>
-  <script src="./product-models.js?v=20261110-shop-fixes" defer></script>
-  <script src="./app.js?v=20261110-shop-fixes" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20261111-ultra-models">
+  <script src="./catalog.js?v=20261111-ultra-models" defer></script>
+  <script src="./shop-mode.js?v=20261111-ultra-models" defer></script>
+  <script src="./shop-rules.js?v=20261111-ultra-models" defer></script>
+  <script src="./model-geometry.js?v=20261111-ultra-models" defer></script>
+  <script src="./product-models.js?v=20261111-ultra-models" defer></script>
+  <script src="./app.js?v=20261111-ultra-models" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -108,6 +109,16 @@
       <form method="dialog"><button type="submit" class="secondary" aria-label="Закрыть 3D-просмотр">×</button></form>
     </header>
     <p id="product-model-hint" class="muted">Тяните модель мышью или пальцем. Стрелки поворачивают, колёсико и клавиши + / − меняют масштаб.</p>
+    <div id="product-model-hats" class="model-hats" hidden>
+      <label for="product-model-hat">Новогодняя шапка</label>
+      <select id="product-model-hat">
+        <option value="none">Без шапки</option>
+        <option value="santa">Шапка Санты</option>
+        <option value="tree">Праздничная ёлочка</option>
+        <option value="winter">Зимняя с помпоном</option>
+      </select>
+      <span id="product-model-hat-status" class="sr-only" role="status"></span>
+    </div>
     <canvas id="product-model" width="720" height="500" tabindex="0" aria-label="Вращаемая 3D-модель товара" aria-describedby="product-model-hint"></canvas>
     <p id="product-model-unavailable" class="muted" hidden>3D-просмотр недоступен в этом браузере. Фотографии есть в карточке товара.</p>
     <div class="model-controls">
