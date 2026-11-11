@@ -70,3 +70,39 @@ vm.runInNewContext(fs.readFileSync("site/model-geometry.js", "utf8") + `
   assert(coffee.some(part => part.label === ">_"));
 `, { assert });
 console.log("PASS detailed meshes, finite unit normals, GPU indices and all hats");
+
+const { createHash } = require("node:crypto");
+function modelFingerprint(parts) {
+  const hash = createHash("sha256");
+  for (const part of parts) {
+    hash.update(Buffer.from(part.vertices.buffer));
+    hash.update(Buffer.from(part.indices.buffer));
+    hash.update(JSON.stringify([part.color, part.label]));
+  }
+  return hash.digest("hex");
+}
+vm.runInNewContext(
+  fs.readFileSync("site/model-geometry.js", "utf8") +
+  fs.readFileSync("site/catalog.js", "utf8") + `
+  assert.deepEqual(Object.keys(productGeometry.models).sort(), seedProducts.map(product => product.id).sort());
+  for (const [id, model] of Object.entries(productGeometry.models)) {
+    assert(model.options.length >= 3, id);
+    const fingerprints = new Set();
+    for (const [variant] of model.options) {
+      const parts = model.make(variant);
+      assert(parts.length > 0, id + "/" + variant);
+      for (const part of parts) {
+        const vertexCount = part.vertices.length / 8;
+        assert(vertexCount < 65536);
+        assert([...part.indices].every(index => index < vertexCount));
+        assert([...part.vertices].every(Number.isFinite));
+        for (let index = 0; index < part.vertices.length; index += 8) {
+          assert(Math.abs(Math.hypot(...part.vertices.slice(index + 3, index + 6)) - 1) < 0.00001);
+        }
+      }
+      fingerprints.add(modelFingerprint(parts));
+    }
+    assert.equal(fingerprints.size, model.options.length, id + " has identical variants");
+  }
+`, { assert, modelFingerprint });
+console.log("PASS all catalog products have distinct valid 3D variants");

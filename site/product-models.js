@@ -7,13 +7,9 @@ const productModelViewer = (() => {
   const reset = document.querySelector("#product-model-reset");
   const launch = document.querySelector("#product-model-launch");
   const spin = document.querySelector("#product-model-spin");
-  const hats = document.querySelector("#product-model-hat");
+  const variants = document.querySelector("#product-model-variant");
   const unavailable = document.querySelector("#product-model-unavailable");
-  const models = {
-    duck: { make: productGeometry.makeDuck, yaw: -0.27, pitch: 0.10, tint: "#30492a" },
-    escape: { make: productGeometry.makeKey, yaw: -0.37, pitch: 0.49, tint: "#374b1b" },
-    coffee: { make: productGeometry.makeCoffee, yaw: 0.23, pitch: 0.19, tint: "#493122" },
-  };
+  const models = productGeometry.models;
   let model;
   let yaw, pitch, zoom;
   let renderer;
@@ -152,10 +148,13 @@ const productModelViewer = (() => {
         context.fillRect(0, 0, 512, 256);
       } else {
         context.fillStyle = "white";
-        context.font = "bold 174px monospace";
+        const lines = kind.split("\n");
+        context.font = `bold ${lines.length > 1 ? 96 : 174}px monospace`;
         context.textAlign = "center";
         context.textBaseline = "middle";
-        context.fillText(kind, 256, 130);
+        lines.forEach((line, index) => {
+          context.fillText(line, 256, 130 + (index - (lines.length - 1) / 2) * 112);
+        });
       }
       const result = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, result);
@@ -222,7 +221,7 @@ const productModelViewer = (() => {
   }
 
   function loadMeshes() {
-    const parts = [...baseParts, ...(model === models.duck ? productGeometry.makeHat(hats.value) : [])];
+    const parts = baseParts;
     const min = [Infinity, Infinity, Infinity];
     const max = [-Infinity, -Infinity, -Infinity];
     for (const part of parts) {
@@ -254,7 +253,7 @@ const productModelViewer = (() => {
     if (meshes) meshes.forEach(renderer.dispose);
     meshes = [shadow, ...parts].map(renderer.upload);
     canvas.dataset.triangles = parts.reduce((sum, part) => sum + part.indices.length / 3, 0);
-    canvas.dataset.hat = model === models.duck ? hats.value : "none";
+    canvas.dataset.variant = variants.value;
   }
 
   function draw() {
@@ -306,13 +305,13 @@ const productModelViewer = (() => {
     try {
       renderer ??= createRenderer();
       if (!meshes) {
-        baseParts ??= model.make();
+        baseParts ??= model.make(variants.value);
         loadMeshes();
       }
       unavailable.hidden = true;
       canvas.hidden = false;
       dialog.querySelector(".model-controls").hidden = false;
-      document.querySelector("#product-model-hats").hidden = model !== models.duck;
+      document.querySelector("#product-model-variants").hidden = false;
       draw();
       canvas.focus();
     } catch (error) {
@@ -320,7 +319,7 @@ const productModelViewer = (() => {
       unavailable.hidden = false;
       canvas.hidden = true;
       dialog.querySelector(".model-controls").hidden = true;
-      document.querySelector("#product-model-hats").hidden = true;
+      document.querySelector("#product-model-variants").hidden = true;
     }
   }
 
@@ -328,10 +327,11 @@ const productModelViewer = (() => {
     dialog.showModal();
     openModel();
   });
-  hats.addEventListener("change", () => {
-    if (!renderer || model !== models.duck) return;
+  variants.addEventListener("change", () => {
+    if (!renderer || !model) return;
+    baseParts = model.make(variants.value);
     loadMeshes();
-    document.querySelector("#product-model-hat-status").textContent = `Выбрано: ${hats.selectedOptions[0].textContent}`;
+    document.querySelector("#product-model-variant-status").textContent = `Выбрано: ${variants.selectedOptions[0].textContent}`;
     scheduleDraw();
   });
 
@@ -413,6 +413,9 @@ const productModelViewer = (() => {
       if (meshes) meshes.forEach(renderer.dispose);
       meshes = undefined;
       baseParts = undefined;
+      variants.replaceChildren(...model.options.map(([value, label]) => new Option(label, value)));
+      document.querySelector("#product-model-variant-label").textContent = model.optionLabel;
+      document.querySelector("#product-model-variant-status").textContent = "";
       document.querySelector("#product-model-title").textContent = product.name + " в 3D";
       canvas.style.setProperty("--model-tint", model.tint);
       resetView();

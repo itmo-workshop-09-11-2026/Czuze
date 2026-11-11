@@ -372,6 +372,8 @@ button:disabled { opacity: .54; cursor: default; }
 .cart-stock { display: block; margin-top: 4px; color: #ffbf89; font-weight: 500; }
 
 #product-model { aspect-ratio: 720 / 500; }
-.model-hats { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
-.model-hats label { color: var(--muted); font: .8rem var(--mono); }
-.model-hats select { min-height: 40px; max-width: 100%; padding: 7px 12px; border: 1px solid #506541; border-radius: 7px; color: var(--text); background: #1d261b; font: inherit; }
+.model-variants { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
+.model-variants label { color: var(--muted); font: .8rem var(--mono); }
+.model-variants select { min-height: 40px; max-width: 100%; padding: 7px 12px; border: 1px solid #506541; border-radius: 7px; color: var(--text); background: #1d261b; font: inherit; }
+
+.model-variants small { color: var(--muted); font-size: .72rem; }
